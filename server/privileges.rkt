@@ -3,7 +3,8 @@
 (provide privilege-line
          minimum-access-mask
          maximum-access-mask
-         mask-join)
+         mask-join
+         is-mask-for?)
 
 ; A `privilege-line` is a set of privileges that have a monotonically
 ; increasing structure, e.g. no access <- can read <- can read & write
@@ -39,7 +40,6 @@
      (not (false? (assoc (dict-ref mask (car x))
                          (cdr x)))))
    plines))
-
 
 
 ; Given a plines poset and a list of masks, return a mask with the

@@ -30,7 +30,7 @@
                      (lambda (f)
                        (set-dataset-desc! dset (f (dataset-desc dset))))))
   (define view (cons 'view
-                     (lambda () (dataset-desc dset))))
+                     (lambda () "this is some description alright")))
   (define no-access (cons 'no-access
                           (lambda () 'no-access)))
   (cons name (list no-access view edit)))

@@ -5,6 +5,9 @@
 
 (provide (struct-out resource)
          user-canonical-mask
+         user-masks
+         resource-set-mask
+         get-actions
          pl-edit-view)
 
 (struct resource (name owner content plines group-masks))
@@ -65,8 +68,18 @@
                               (eq? (dict-ref mask k) (car x)))
                             (reverse v)))))))
 
-;; (define (resource-set-mask res gid mask)
-;;   (
+;; Given a resource, a group ID, and a mask that fits the resource,
+;; returns a new resource with the corresponding group's mask updated
+;; to the given mask. Returns #f if the mask doesn't fit.
+(define (resource-set-mask res gid mask)
+  (if (is-mask-for? (resource-plines res) mask)
+      (struct-copy resource
+                   res
+                   [group-masks (dict-set
+                                 (resource-group-masks res)
+                                 gid
+                                 mask)])
+      #f))
 
 
 ;; Constructor for a pline with actions for no access, getting, and
