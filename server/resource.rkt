@@ -12,8 +12,13 @@
 ; Given a resource and a user, get the masks for that user based
 ; on the per-group masks in the resource privileges.
 (define (user-masks res u)
-  (define masks (map (curry dict-ref (resource-group-masks res))
-                     (map group-id (groups-by-user u))))
+  (define masks
+    (map (lambda (x)
+           (dict-ref (resource-group-masks res)
+                     x
+                     ; TODO the minimum access mask should be defined on a per-resource basis
+                     (minimum-access-mask (resource-plines res))))
+         (map group-id (groups-by-user u))))
   (if (empty? masks)
       (list (minimum-access-mask (resource-plines res)))
       masks))
