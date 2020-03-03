@@ -6,7 +6,18 @@
          threading
          "db.rkt")
 
-(provide ;group-by-id
+
+
+(provide select-users
+         select-user-id
+         select-user-name
+         insert-user
+         insert-group
+         select-groups
+         select-group-id
+         select-groups-by-user-id
+         add-member
+         del-member
          ;groups-by-user
          ;user-by-id
          ;; has-user?
@@ -143,6 +154,9 @@
 (define (has-user? g uid)
   (or (has-admin? g uid) (has-member? g uid)))
 
+; this API (add/del-member, promote/demote for admins) is clunky and
+; more of the logic should be handled by the DB; however that can wait
+; until I move over to redis.
 (define (add-member dbc gid uid)
   (let ([g (select-group-id dbc gid)])
     (if (has-user? g uid)
