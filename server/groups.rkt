@@ -58,7 +58,7 @@
 (struct group (id admins members)
   #:transparent)
 
-
+; TODO this should check that the provided user IDs point to existing users
 (define (insert-group dbc admins members)
   (let ([admin-str (jsexpr->string (set->list admins))]
         [mems-str (jsexpr->string (set->list members))])
@@ -116,102 +116,108 @@
       (map read-group-row
            (query-rows dbc
                        (group-query-string "admin_ids" id)))
-      (error "tried to select groups where id is not a number"))
+      (error "tried to select groups where id is not a number")))
 
 (define (select-groups-by-member-id dbc id)
   (if (number? id)
       (map read-group-row
            (query-rows dbc
                        (group-query-string "member_ids" id)))
-      (error "tried to select groups where id is not a number"))
+      (error "tried to select groups where id is not a number")))
+
+(define (select-groups-by-user-id dbc id)
+  (~> (map read-group-row
+           (query-rows dbc "select * from groups"))
+      (filter (lambda (g) (has-user? g id)) _)))
 
 
-;; (define (select-groups-by-user-id dbc id)
-;;   (map read-group-row
-
-
-
-
-; Placeholder global user "DB" with some entries for testing
-;; (define user-db
-;;   (list (user 1 "admin1")
-;;         (user 2 "user1")
-;;         (user 3 "user2")
-;;         (user 4 "admin2")))
-
-;; TODO rewrite
-;; (define (user-by-id id)
-;;   (findf (lambda (u) (eq? id (user-id u))) user-db))
-
-
-
-;; NOTE this isn't used anywhere
-;; (define (same-user? a b)
-;;   (equal? (user-id a) (user-id b)))
-
-
-; Placeholder global group "DB", will be replaced by an actual DB
-; system etc.
-;; (define group-db
-;;   (mutable-set))
-
-;; (define user-groups (make-parameter group-db))
-
-
-;; (set-add! group-db (group 0
-;;                           (set (user-by-id 1))
-;;                           (set (user-by-id 3))))
-
-; Placeholder function for adding a group to the global DB; only works
-; if the given user ID exists in the user Db
-
-;; TODO rewrite
-;; (define (add-group-for-owner owner-id)
-;;   (define user (user-by-id owner-id))
-;;   (when user
-;;     (set-add! group-db (group (set-count group-db)
-;;                               (set user)
-;;                               (set)))))
-
-;; This is only used by add-member and make-admin. These functions
+;; has-member? is only used by add-member and make-admin. These functions
 ;; should probably be replaced by an interface that makes more sense
 ;; for our purposes.
-(define (has-user? g u)
-  (or (set-member? (group-admins g) u)
-      (set-member? (group-members g) u)))
+(define (has-admin? g uid)
+  (set-member? (group-admins g) uid))
 
-(define (add-member g u)
-  (if (has-user? g u)
-      g
-      (struct-copy group
-                   g
-                   [members (set-add (group-members g) u)])))
+(define (has-member? g uid)
+  (set-member? (group-members g) uid))
 
-(define (del-member g u)
-  (struct-copy group
-               g
-               [admins (set-remove (group-admins g) u)]
-               [members (set-remove (group-members g) u)]))
+(define (has-user? g uid)
+  (or (has-admin? g uid) (has-member? g uid)))
 
-(define (make-admin g m)
-  (if (has-user? g m)
-      (struct-copy group
-                   g
-                   [admins (set-add (group-admins g) m)]
-                   [members (set-remove (group-members g) m)])
-      g))
+(define (add-member dbc gid uid)
+  (let ([g (select-group-id dbc gid)])
+    (if (has-user? g uid)
+        #f ; user exists; do nothing
+        (let ([new-members (~> (group-members g)
+                               (set-add _ uid)
+                               (set->list)
+                               (jsexpr->string))])
+          (query-exec dbc
+                      "update groups
+                       set member_ids = ?
+                       where group_id = ?"
+                      new-members
+                      gid)))))
 
-;; TODO rewrite
-;; (define (group-by-id id)
-;;   (findf (lambda (g) (eq? id (group-id g)))
-;;          (set->list group-db)))
+(define (del-member dbc gid uid)
+  (let ([g (select-group-id dbc gid)])
+    (if (not (has-member? g uid))
+        #f ; member doesn't exist; do nothing
+        (let ([new-members (~> (group-members g)
+                               (set-remove _ uid)
+                               (set->list)
+                               (jsexpr->string))])
+          (query-exec dbc
+                      "update groups
+                       set member_ids = ?
+                       where group_id = ?"
+                      new-members
+                      gid)))))
 
-;; TODO rewrite
-;; (define (groups-by-user u)
-;;   (filter (lambda (g) (has-user? g u))
-;;           (set->list group-db)))
 
-;
+(define (promote-to-admin dbc gid uid)
+  (let ([g (select-group-id dbc gid)])
+    (if (not (has-member? g uid))
+        #f ; member doesn't exist; do nothing
+        (let ([new-members (~> (group-members g)
+                               (set-remove _ uid)
+                               (set->list)
+                               (jsexpr->string))]
+              [new-admins (~> (group-admins g)
+                              (set-add _ uid)
+                              (set->list)
+                              (jsexpr->string))])
+          (query-exec dbc
+                      "update groups
+                       set member_ids = ?
+                           admin_ids = ?
+                       where group_id = ?"
+                      new-members
+                      new-admins
+                      gid)))))
+
+
+(define (demote-to-member dbc gid uid)
+  (let ([g (select-group-id dbc gid)])
+    (if (not (has-admin? g uid))
+        #f ; admin doesn't exist; do nothing
+        (let ([new-members (~> (group-members g)
+                               (set-add _ uid)
+                               (set->list)
+                               (jsexpr->string))]
+              [new-admins (~> (group-admins g)
+                              (set-remove _ uid)
+                              (set->list)
+                              (jsexpr->string))])
+          (query-exec dbc
+                      "update groups
+                       set member_ids = ?
+                           admin_ids = ?
+                       where group_id = ?"
+                      new-members
+                      new-admins
+                      gid)))))
+
+
 (define (all-members g)
   (set->list (set-union (group-admins g)
                         (group-members g))))
