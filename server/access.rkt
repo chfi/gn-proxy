@@ -155,8 +155,8 @@
 ;;                               (set user)
 ;;                               (set)))))
 
-(add-group-for-owner 4)
-(add-group-for-owner 3)
+;; (add-group-for-owner 4)
+;; (add-group-for-owner 3)
 
 ;; (define (has-user? g u)
 ;;   (or (set-member? (group-admins g) u)
@@ -249,16 +249,16 @@
 ;;   (resource n o ps))
 
 
-(define tst-res
-  (let ([plines (list (pl-dataset-data empty)
-                      (pl-dataset-desc "test desc")
-                      (pl-resource-admin empty))])
-    (resource "test"
-               (user-by-id 1)
-               empty
-               plines
-               (list (cons 1 (maximum-access-mask plines))
-                     (cons 2 (minimum-access-mask plines))
-                     (cons 0 (list '(data . edit)
-                                   '(desc . no-access)
-                                   '(admin . not-admin)))))))
+;; (define tst-res
+;;   (let ([plines (list (pl-dataset-data empty)
+;;                       (pl-dataset-desc "test desc")
+;;                       (pl-resource-admin empty))])
+;;     (resource "test"
+;;                (user-by-id 1)
+;;                empty
+;;                plines
+;;                (list (cons 1 (maximum-access-mask plines))
+;;                      (cons 2 (minimum-access-mask plines))
+;;                      (cons 0 (list '(data . edit)
+;;                                    '(desc . no-access)
+;;                                    '(admin . not-admin)))))))
