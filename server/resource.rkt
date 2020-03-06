@@ -15,22 +15,71 @@
          ;; pl-edit-view
          )
 
-(struct resource (name owner content plines group-masks))
+
+; important: the `data` field in a resource isn't the data itself,
+; instead it contains whatever data is necessary for the resource's
+; actions. The `type` designates what kind of resource it is, e.g.
+; dataset, collection, etc. The actions available depend on the
+; resource type.
+(struct resource (name owner data type group-masks))
 
 (define (select-resources dbc)
   (query-rows dbc
               "select * from resources"))
 
-(define (insert-resource dbc name owner content type)
+(define (insert-resource dbc name owner data type)
   (query-exec dbc
-              "insert into resources (name, owner_id, content, resource_type)
+              "insert into resources (name, owner_id, resource_data, resource_type)
                values (?,?,?,?)"
               name
               owner
-              content
+              data
               type))
 
 
+
+(define resource-types
+  '(dataset-publish
+    dataset-probeset
+    dataset-geno
+    dataset-temp
+    collection))
+
+(define (select-publish dbc dataset-id trait-name)
+  (query-row dbc
+             "SELECT
+                      PublishXRef.Id, InbredSet.InbredSetCode, Publication.PubMed_ID,
+                      Phenotype.Pre_publication_description, Phenotype.Post_publication_description, Phenotype.Original_description,
+                      Phenotype.Pre_publication_abbreviation, Phenotype.Post_publication_abbreviation,
+                      Phenotype.Lab_code, Phenotype.Submitter, Phenotype.Owner, Phenotype.Authorized_Users,
+                      Publication.Authors, Publication.Title, Publication.Abstract,
+                      Publication.Journal, Publication.Volume, Publication.Pages,
+                      Publication.Month, Publication.Year, PublishXRef.Sequence,
+                      Phenotype.Units, PublishXRef.comments
+                FROM
+                      PublishXRef, Publication, Phenotype, PublishFreeze, InbredSet
+                WHERE
+                      PublishXRef.Id = ? AND
+                      Phenotype.Id = PublishXRef.PhenotypeId AND
+                      Publication.Id = PublishXRef.PublicationId AND
+                      PublishXRef.InbredSetId = PublishFreeze.InbredSetId AND
+                      PublishXRef.InbredSetId = InbredSet.Id AND
+                      PublishFreeze.Id = ?"
+             trait-name
+             dataset-id))
+
+
+
+(define (select-geno dbc dataset-name trait-name)
+  (query-row dbc
+             "SELECT Geno.name Geno.chr Geno.mb Geno.source2 Geno.sequence
+              FROM Geno, GenoFreeze, GenoXRef
+              WHERE GenoXRef.GenoFreezeId = GenoFreeze.Id AND
+                    GenoXRef.GenoId = Geno.Id AND
+                    GenoFreeze.Name = ? AND
+                    Geno.Name = ?"
+             dataset-name
+             trait-name))
 
 
 ; Given a resource and a user, get the masks for that user based

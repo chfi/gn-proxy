@@ -38,7 +38,7 @@
       resource_id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
       owner_id INTEGER NOT NULL,
-      content TEXT NOT NULL,
+      resource_data TEXT NOT NULL,
       resource_type TEXT NOT NULL,
       FOREIGN KEY (owner_id)
         REFERENCES users (user_id))"))
