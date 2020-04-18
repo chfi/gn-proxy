@@ -1,6 +1,7 @@
 #lang racket
 
 (require db
+         redis
          json
          threading
          "db.rkt"
@@ -21,22 +22,34 @@
 ; actions. The `type` designates what kind of resource it is, e.g.
 ; dataset, collection, etc. The actions available depend on the
 ; resource type.
-(struct resource (name owner data type group-masks))
+(struct resource (name owner data type default-mask group-masks))
 
-(define (select-resources dbc)
-  (query-rows dbc
-              "select * from resources"))
+(define (get-resource dbc id)
+  (let ((res-json (string->jsexpr (redis-hash-get dbc "resources" id))))
+    (resource (dict-ref res-json "name")
+              (dict-ref res-json "owner")
+              (dict-ref res-json "data") ;; may change
+              (dict-ref res-json "type")
+              (~> (dict-ref res-json "default_mask")
+                  ;; not sure if these conversions are necessary, but
+                  ;; i think it is
+                  (string->jsexpr))
+              (~> (dict-ref res-json "group_masks")
+                  (string->jsexpr)))))
 
-(define (insert-resource dbc name owner data type)
-  (query-exec dbc
-              "insert into resources (name, owner_id, resource_data, resource_type)
-               values (?,?,?,?)"
-              name
-              owner
-              data
-              type))
 
+;; (define (select-resources dbc)
+;;   (query-rows dbc
+;;               "select * from resources"))
 
+;; (define (insert-resource dbc name owner data type)
+;;   (query-exec dbc
+;;               "insert into resources (name, owner_id, resource_data, resource_type)
+;;                values (?,?,?,?)"
+;;               name
+;;               owner
+;;               data
+;;               type))
 
 (define resource-types
   '(dataset-publish
@@ -44,6 +57,14 @@
     dataset-geno
     dataset-temp
     collection))
+
+
+
+(define dataset-publish
+  #hash(("data" . ("no-access" "view" "edit") )
+        ("metadata" . ("no-access" "view" "edit"))
+        ("admin" . ("no-access" "edit-access" "edit-admins"))))
+
 
 (define (select-publish dbc dataset-id trait-name)
   (query-row dbc

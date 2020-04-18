@@ -5,7 +5,7 @@
          json
          threading)
 
-;; (provide )
+(provide connect-redis)
 
 (define (connect-redis)
   (make-redis))

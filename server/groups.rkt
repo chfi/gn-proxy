@@ -41,7 +41,7 @@
       (~> (dict-ref group-json k)
           (string->jsexpr)
           (list->set)))
-    (group id
+    (group id ;;parse to number? does it matter?
            (parse "admins")
            (parse "members"))))
 
