@@ -4,6 +4,7 @@
          redis
          json
          threading
+         racket/file
          "db.rkt"
          "groups.rkt"
          "privileges.rkt")
@@ -23,6 +24,49 @@
 ; dataset, collection, etc. The actions available depend on the
 ; resource type.
 (struct resource (name owner data type default-mask group-masks))
+
+(struct file-data (path metadata-key))
+
+(define resource-types
+  '(dataset-file))
+    ;; dataset-publish
+    ;; dataset-probeset
+    ;; dataset-geno
+    ;; dataset-temp
+    ;; collection))
+
+(define (no-access-action)
+  'nothing)
+
+(define (view-file path)
+  (file->string path
+                #:mode 'text))
+
+(define (edit-file path contents)
+  (write-to-file contents
+                 path
+                 #:exists 'replace))
+
+(define (view-metadata dbc key)
+  (redis-bytes-get dbc key))
+
+(define (edit-metadata dbc key value)
+  (redis-bytes-set! dbc key value))
+
+(define dataset-file-data
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-file)
+        (cons "edit" edit-file)))
+
+(define dataset-file-metadata
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-metadata)
+        (cons "edit" edit-metadata)))
+
+(define dataset-file
+  (list (cons "data" dataset-file-data)
+        (cons "metadata" dataset-file-metadata)))
+
 
 (define (get-resource dbc id)
   (let ((res-json (string->jsexpr (redis-hash-get dbc "resources" id))))
@@ -51,19 +95,6 @@
 ;;               data
 ;;               type))
 
-(define resource-types
-  '(dataset-publish
-    dataset-probeset
-    dataset-geno
-    dataset-temp
-    collection))
-
-
-
-(define dataset-publish
-  #hash(("data" . ("no-access" "view" "edit") )
-        ("metadata" . ("no-access" "view" "edit"))
-        ("admin" . ("no-access" "edit-access" "edit-admins"))))
 
 
 (define (select-publish dbc dataset-id trait-name)
@@ -134,8 +165,8 @@
 ;;                 admin-level)))
 
 ; The owner of a resource has complete access.
-(define (owner-mask res)
-  (maximum-access-mask (resource-plines res)))
+;; (define (owner-mask res)
+;;   (maximum-access-mask (resource-plines res)))
 
 ; Given a resource and a user, calculate the user's canonical access mask
 ; based on the user's group membership, whether or not they're an admin,
@@ -172,12 +203,12 @@
 ;; to the given mask. Returns #f if the mask doesn't fit.
 
 ; TODO rewrite
-(define (resource-set-mask res gid mask)
-  (if (is-mask-for? (resource-plines res) mask)
-      (struct-copy resource
-                   res
-                   [group-masks (dict-set
-                                 (resource-group-masks res)
-                                 gid
-                                 mask)])
-      #f))
+;; (define (resource-set-mask res gid mask)
+;;   (if (is-mask-for? (resource-plines res) mask)
+;;       (struct-copy resource
+;;                    res
+;;                    [group-masks (dict-set
+;;                                  (resource-group-masks res)
+;;                                  gid
+;;                                  mask)])
+;;       #f))
