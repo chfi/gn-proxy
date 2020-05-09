@@ -25,15 +25,15 @@
 ; resource type.
 (struct resource (name owner data type default-mask group-masks))
 
-(struct file-data (path metadata-key))
+(define (new-file-resource name owner-id path meta-key default-mask)
+  (resource name
+            owner-id
+            (file-data path meta-key)
+            default-mask
+            empty))
 
-(define resource-types
-  '(dataset-file))
-    ;; dataset-publish
-    ;; dataset-probeset
-    ;; dataset-geno
-    ;; dataset-temp
-    ;; collection))
+
+(struct file-data (path metadata-key))
 
 (define (no-access-action)
   'nothing)
@@ -63,9 +63,19 @@
         (cons "view" view-metadata)
         (cons "edit" edit-metadata)))
 
-(define dataset-file
+(define dataset-file-actions
   (list (cons "data" dataset-file-data)
         (cons "metadata" dataset-file-metadata)))
+
+
+(define resource-types
+  (list (cons 'dataset-file dataset-file-actions)))
+    ;; future resource types, for reference (c.f. genenetwork datasets etc.)
+    ;; dataset-publish
+    ;; dataset-probeset
+    ;; dataset-geno
+    ;; dataset-temp
+    ;; collection
 
 
 (define (get-resource dbc id)
@@ -165,8 +175,8 @@
 ;;                 admin-level)))
 
 ; The owner of a resource has complete access.
-;; (define (owner-mask res)
-;;   (maximum-access-mask (resource-plines res)))
+(define (owner-mask res-type)
+  (maximum-access-mask (dict-ref resource-types res-type)))
 
 ; Given a resource and a user, calculate the user's canonical access mask
 ; based on the user's group membership, whether or not they're an admin,
