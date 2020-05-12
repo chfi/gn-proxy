@@ -16,13 +16,7 @@
          resource-types
          resource-actions
          serialize-resource
-         deserialize-resource
-         ;; user-canonical-mask
-         ;; user-masks
-         ;; resource-set-mask
-         ;; get-actions
-         ;; pl-edit-view
-         )
+         deserialize-resource)
 
 
 ; important: the `data` field in a resource isn't the data itself,

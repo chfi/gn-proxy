@@ -42,6 +42,9 @@
 ;; Query available actions for a resource, for a given user
 (define (query-available req)
   (define binds (request-bindings/raw req))
+  (define (masked-actions actions)
+    (for/hash ([(k v) (in-hash actions)])
+      (values k (map car v))))
   (define message
     (match (list (bindings-assq #"resource" binds)
                  (bindings-assq #"user" binds))
@@ -55,7 +58,9 @@
                      res
                      (string->number
                       (bytes->string/utf-8 user-id)))))
-         (jsexpr->bytes mask))]))
+         (~> (apply-mask (resource-actions res) mask)
+             (masked-actions)
+             (jsexpr->bytes)))]))
   (response/output
    (lambda (out)
      (displayln message out))))
