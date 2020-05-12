@@ -23,14 +23,61 @@
 ; actions. The `type` designates what kind of resource it is, e.g.
 ; dataset, collection, etc. The actions available depend on the
 ; resource type.
-(struct resource (name owner data type default-mask group-masks))
+(struct resource
+  (name
+   owner
+   data
+   type
+   default-mask
+   group-masks)
+  #:transparent)
+
+(define (serialize-resource res)
+  (jsexpr->bytes (hash 'name (resource-name res)
+                       'owner_id (resource-owner res)
+                       'data (resource-data res)
+                       'type (symbol->string (resource-type res))
+                       'default_mask (resource-default-mask res)
+                       'group_masks (resource-group-masks res))))
+
+(define (deserialize-resource res)
+  (let ((res-hash (bytes->jsexpr res)))
+    (define (parse k)
+      (dict-ref res-hash k))
+    (resource (parse 'name)
+              (parse 'owner_id)
+              (parse 'data)
+              (string->symbol (parse 'type))
+              (parse 'default_mask)
+              (parse 'group_masks))))
+
+(define (get-resource dbc id)
+  (~> (redis-hash-ref dbc "resources" id)
+      (deserialize-resource)))
+
 
 (define (new-file-resource name owner-id path meta-key default-mask)
   (resource name
             owner-id
-            (file-data path meta-key)
+            (hasheq 'path path
+                  'metadata meta-key)
+            'dataset-file
             default-mask
-            empty))
+            (hasheq)))
+
+
+; grp-id must be given as a symbol
+(define (resource-set-group-mask res grp-id mask)
+  (if (is-mask-for? (dict-ref resource-types (resource-type res))
+                    mask)
+      (let* ((old-masks (resource-group-masks res))
+             (new-masks (hash-set old-masks
+                                  grp-id
+                                  mask)))
+        (struct-copy resource
+                     res
+                     [group-masks new-masks]))
+      (error 'incompatible-action-mask)))
 
 
 (struct file-data (path metadata-key))
@@ -64,10 +111,11 @@
         (cons "edit" edit-metadata)))
 
 (define dataset-file-actions
-  (hash "data" dataset-file-data
-        "metadata" dataset-file-metadata))
+  (hash 'data dataset-file-data
+        'metadata dataset-file-metadata))
 
 
+; A hash mapping resource types to action sets
 (define resource-types
   (hash 'dataset-file dataset-file-actions))
     ;; future resource types, for reference (c.f. genenetwork datasets etc.)
@@ -77,19 +125,6 @@
     ;; dataset-temp
     ;; collection
 
-
-(define (get-resource dbc id)
-  (let ((res-json (string->jsexpr (redis-hash-get dbc "resources" id))))
-    (resource (dict-ref res-json "name")
-              (dict-ref res-json "owner")
-              (dict-ref res-json "data") ;; may change
-              (dict-ref res-json "type")
-              (~> (dict-ref res-json "default_mask")
-                  ;; not sure if these conversions are necessary, but
-                  ;; i think it is
-                  (string->jsexpr))
-              (~> (dict-ref res-json "group_masks")
-                  (string->jsexpr)))))
 
 
 ;; (define (select-resources dbc)
