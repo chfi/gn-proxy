@@ -64,12 +64,12 @@
         (cons "edit" edit-metadata)))
 
 (define dataset-file-actions
-  (list (cons "data" dataset-file-data)
-        (cons "metadata" dataset-file-metadata)))
+  (hash "data" dataset-file-data
+        "metadata" dataset-file-metadata))
 
 
 (define resource-types
-  (list (cons 'dataset-file dataset-file-actions)))
+  (hash 'dataset-file dataset-file-actions))
     ;; future resource types, for reference (c.f. genenetwork datasets etc.)
     ;; dataset-publish
     ;; dataset-probeset

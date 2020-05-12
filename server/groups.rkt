@@ -43,18 +43,19 @@
 (struct group (id admins members)
   #:transparent)
 
-;; may end up having to deserialize the admins and members fields as
-;; an additional step
 (define (get-group dbc id)
-  (let ((group-hash (bytes->jsexpr (redis-hash-ref dbc "groups" id))))
+  (let ((group-hash (bytes->jsexpr
+                     (redis-hash-ref dbc
+                                     "groups"
+                                     (number->string id)))))
     (define (parse k)
       (~> (dict-ref group-hash k)
-          (bytes->jsexpr)
           (list->set)))
-    (group id ;;parse to number? does it matter?
-           (parse "admins")
-           (parse "members"))))
+    (group id
+           (parse 'admins)
+           (parse 'members))))
 
+;; like add-user, for testing in the REPL
 (define (add-group dbc id admins members)
   (redis-hash-set! dbc
                    "groups"
