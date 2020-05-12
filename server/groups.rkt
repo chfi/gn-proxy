@@ -8,14 +8,13 @@
          "db.rkt")
 
 
-
 (provide get-user
          get-group
+         get-groups-by-member
          add-user
          add-group
          (struct-out user)
          (struct-out group))
-
 
 
 ; A simple (placeholder) user type, to be replaced by one isomorphic
@@ -43,17 +42,20 @@
 (struct group (id admins members)
   #:transparent)
 
-(define (get-group dbc id)
-  (let ((group-hash (bytes->jsexpr
-                     (redis-hash-ref dbc
-                                     "groups"
-                                     (number->string id)))))
+(define (deserialize-group id grp-bytes)
+  (let ((group-hash (bytes->jsexpr grp-bytes)))
     (define (parse k)
       (~> (dict-ref group-hash k)
           (list->set)))
     (group id
            (parse 'admins)
            (parse 'members))))
+
+(define (get-group dbc id)
+  (deserialize-group id
+                     (redis-hash-ref dbc
+                                     "groups"
+                                     (number->string id))))
 
 ;; like add-user, for testing in the REPL
 (define (add-group dbc id admins members)
@@ -68,28 +70,14 @@
         (list->set '(5 6 7 8 9 10))))
 
 
-;; TODO it *might* be useful to have in gn-proxy? But for now it's
-;; fine to have GN search Redis and return the group ID, if this
-;; functionality is needed
+; Returns all groups that have the given user ID either as admin or member
+(define (get-groups-by-member dbc id)
+  (define (parse e)
+    (deserialize-group (car e) (cdr e)))
+  (for/list ([group (sequence-map parse (in-redis-hash dbc "groups"))]
+             #:when (has-user? group id))
+    group))
 
-;; (define (select-groups-by-admin-id dbc id)
-;;   (if (number? id)
-;;       (map read-group-row
-;;            (query-rows dbc
-;;                        (group-query-string "admin_ids" id)))
-;;       (error "tried to select groups where id is not a number")))
-
-;; (define (select-groups-by-member-id dbc id)
-;;   (if (number? id)
-;;       (map read-group-row
-;;            (query-rows dbc
-;;                        (group-query-string "member_ids" id)))
-;;       (error "tried to select groups where id is not a number")))
-
-;; (define (select-groups-by-user-id dbc id)
-;;   (~> (map read-group-row
-;;            (query-rows dbc "select * from groups"))
-;;       (filter (lambda (g) (has-user? g id)) _)))
 
 
 ;; has-member? is only used by add-member and make-admin. These functions
