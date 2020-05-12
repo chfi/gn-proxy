@@ -60,6 +60,28 @@
    (lambda (out)
      (displayln message out))))
 
+(define (run-action req)
+  (define binds (request-bindings/raw req))
+  (define message
+    (match (list (bindings-assq #"resource" binds)
+                 (bindings-assq #"user" binds)
+                 (bindings-assq #"action" binds))
+      [(list #f #f #f)
+       "provide resource id, user id, and action to perform"]
+      [(list (binding:form _ res-id)
+             (binding:form _ user-id)
+             (binding:form _ action))
+       (let* ((res (get-resource redis-conn res-id))
+              (mask (get-mask-for-user
+                     redis-conn
+                     res
+                     (string->number
+                      (bytes->string/utf-8 user-id)))))
+         (jsexpr->bytes mask))]))
+  (response/output
+   (lambda (out)
+     (displayln message out))))
+
 ;; Attempt to run an action on a resource as a given user
 ;; TODO
 
