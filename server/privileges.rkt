@@ -16,7 +16,6 @@
   `(,name . ,fun))
 
 
-; TODO the minimum access mask should be defined on a per-resource basis
 (define (minimum-access-mask pls)
   (dict-map pls
             (lambda (k v)

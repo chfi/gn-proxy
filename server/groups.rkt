@@ -11,6 +11,8 @@
 
 (provide get-user
          get-group
+         add-user
+         add-group
          (struct-out user)
          (struct-out group))
 
@@ -23,9 +25,17 @@
 
 
 (define (get-user dbc id)
-  (let ((user-json (string->jsexpr (redis-hash-get dbc "users" id))))
+  (let ((user-hash (bytes->jsexpr (redis-hash-ref dbc "users" id))))
     (user id
-          (dict-ref user-json "user_name"))))
+          (dict-ref user-hash 'user_name))))
+
+;; This is mainly for testing locally; the proxy shouldn't create
+;; users in production
+(define (add-user dbc id name)
+  (redis-hash-set! dbc
+                   "users"
+                   (number->string id)
+                   (jsexpr->bytes (hash 'user_name name))))
 
 ; A group is a product of two sets of users, admins and members. A
 ; user can be either an admin or a member, not both. Logically, for
@@ -36,14 +46,21 @@
 ;; may end up having to deserialize the admins and members fields as
 ;; an additional step
 (define (get-group dbc id)
-  (let ((group-json (string->jsexpr (redis-hash-get dbc "groups" id))))
+  (let ((group-hash (bytes->jsexpr (redis-hash-ref dbc "groups" id))))
     (define (parse k)
-      (~> (dict-ref group-json k)
-          (string->jsexpr)
+      (~> (dict-ref group-hash k)
+          (bytes->jsexpr)
           (list->set)))
     (group id ;;parse to number? does it matter?
            (parse "admins")
            (parse "members"))))
+
+(define (add-group dbc id admins members)
+  (redis-hash-set! dbc
+                   "groups"
+                   (number->string id)
+                   (jsexpr->bytes (hash 'admins (set->list admins)
+                                        'members (set->list members)))))
 
 (define test-grp
   (cons (list->set '(1 2 3 4))
