@@ -55,6 +55,21 @@
   (~> (redis-hash-ref dbc "resources" id)
       (deserialize-resource)))
 
+(define (get-masks-for-user dbc resource user-id)
+  (let ([group-masks (resource-group-masks resource)]
+        [groups (get-groups-by-member dbc user-id)]
+        [default-mask (resource-default-mask resource)])
+    (apply mask-join
+           (dict-ref resource-types (resource-type resource))
+           default-mask
+           (for/list ([g groups])
+      ; the redis library requires symbols for keys, but the values
+      ; are bytestrings...
+             (~> (group-id g)
+                 (bytes->string/utf-8)
+                 (string->symbol)
+                 (hash-ref group-masks _ default-mask))))))
+
 
 (define (new-file-resource name owner-id path meta-key default-mask)
   (resource name
