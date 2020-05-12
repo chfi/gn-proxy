@@ -36,12 +36,12 @@
 (define (mask-index action-line)
   (lambda (access-level)
     (index-of action-line access-level
-              (lambda (x y) (eq? (car x) y)))))
+              (lambda (x y) (string=? (car x) y)))))
 
 ; Given an action set and a list of masks, return a mask with the
 ; highest access level per pline that was found in the masks.
 (define (mask-join actions . masks)
-  (for/hash ([(k v) (in-hash actions)])
+  (for/hasheq ([(k v) (in-hash actions)])
     (values k (argmax (mask-index v)
                       (map (curryr dict-ref k) masks)))))
 
