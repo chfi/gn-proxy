@@ -1,11 +1,25 @@
 #lang racket
 
-(provide minimum-access-mask
+(provide (struct-out action)
+         minimum-access-mask
          maximum-access-mask
          mask-join
          apply-mask
          is-action-set?
          is-mask-for?)
+
+(struct
+  action
+  (id
+   fun
+   params)
+  #:transparent)
+
+
+;; (define (run-action action resource)
+  ;; TODO add check that action matches resource type
+  ;; (let ((data (resource-data resource)))
+  ;; (action-fun
 
 ;; An action set is the hash-of-lists-of-functions that define the
 ;; actions available on a resource type

@@ -98,23 +98,63 @@
 
 (struct file-data (path metadata-key))
 
-(define (no-access-action)
-  'nothing)
+;; (define (no-access-action)
+;;   'nothing)
 
-(define (view-file path)
-  (file->string path
-                #:mode 'text))
+(define no-access-action
+  (action "no-access"
+          (lambda ()
+            'no-access)
+          '()))
 
-(define (edit-file path contents)
-  (write-to-file contents
-                 path
-                 #:exists 'replace))
+;; (define (view-file data)
+;;   (file->string (hash-ref data 'path)
+;;                 #:mode 'text))
 
-(define (view-metadata dbc key)
-  (redis-bytes-get dbc key))
+;; (define (edit-file path contents)
+;;   (write-to-file contents
+;;                  path
+;;                  #:exists 'replace))
 
-(define (edit-metadata dbc key value)
-  (redis-bytes-set! dbc key value))
+(define view-file
+  (action "view"
+          (lambda (data)
+            (file->string (hash-ref data 'path) #:mode 'text))
+          '()))
+
+(define edit-file
+  (action "edit"
+          (lambda (data contents)
+            (write-to-file contents
+                           (hash-ref data 'path)
+                           #:exists 'replace))))
+
+
+
+;; TODO the dbc should be passed as a Racket parameter rather than an action param
+
+
+;; params should be provided as keyword arguments
+(define view-metadata
+  (action "view"
+          (lambda (data dbc)
+            (redis-bytes-get dbc
+                             (hash-ref data 'key)))
+          '(dbc)))
+
+(define edit-metadata
+  (action "edit"
+          (lambda (data dbc value)
+            (redis-bytes-set! dbc
+                              (hash-ref data 'key)
+                              value))
+          '(dbc value)))
+
+;; (define (view-metadata dbc key)
+;;   (redis-bytes-get dbc key))
+
+;; (define (edit-metadata dbc key value)
+;;   (redis-bytes-set! dbc key value))
 
 (define dataset-file-data
   (list (cons "no-access" no-access-action)
