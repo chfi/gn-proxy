@@ -15,6 +15,7 @@
          resource-set-group-mask
          resource-types
          resource-actions
+         access-action
          serialize-resource
          deserialize-resource)
 
@@ -96,7 +97,25 @@
       (error 'incompatible-action-mask)))
 
 
-(struct file-data (path metadata-key))
+;; Return the action, as defined by a pair of a branch name and action
+;; name, for a given resource, as accessible by the given user.
+;; Returns #f if the user does not have access.
+(define (access-action dbc res user-id action-pair)
+  (let ((branch-id (car action-pair))
+        (action-id (cdr action-pair))
+        (mask (get-mask-for-user dbc
+                                 res
+                                 user-id))
+        (action-set (dict-ref resource-types (resource-type res))))
+    (if (string=? (hash-ref mask branch-id #f)
+                  action-id)
+        (let* ((branch (hash-ref action-set branch-id))
+               (action (assoc action-id branch)))
+          (cdr action))
+        #f)))
+
+
+
 
 ;; (define (no-access-action)
 ;;   'nothing)
