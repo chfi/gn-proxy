@@ -11,8 +11,7 @@
 (struct
   action
   (id
-   fun
-   params)
+   fun)
   #:transparent)
 
 

@@ -104,8 +104,7 @@
 (define no-access-action
   (action "no-access"
           (lambda ()
-            'no-access)
-          '()))
+            'no-access)))
 
 ;; (define (view-file data)
 ;;   (file->string (hash-ref data 'path)
@@ -119,13 +118,13 @@
 (define view-file
   (action "view"
           (lambda (data)
-            (file->string (hash-ref data 'path) #:mode 'text))
-          '()))
+            (file->string (hash-ref data 'path) #:mode 'text))))
 
 (define edit-file
   (action "edit"
-          (lambda (data contents)
-            (write-to-file contents
+          (lambda (data
+                   #:contents c)
+            (write-to-file c
                            (hash-ref data 'path)
                            #:exists 'replace))))
 
@@ -137,18 +136,19 @@
 ;; params should be provided as keyword arguments
 (define view-metadata
   (action "view"
-          (lambda (data dbc)
+          (lambda (data
+                   #:redis dbc)
             (redis-bytes-get dbc
-                             (hash-ref data 'key)))
-          '(dbc)))
+                             (hash-ref data 'key)))))
 
 (define edit-metadata
   (action "edit"
-          (lambda (data dbc value)
+          (lambda (data
+                   #:redis dbc
+                   #:value value)
             (redis-bytes-set! dbc
                               (hash-ref data 'key)
-                              value))
-          '(dbc value)))
+                              value))))
 
 ;; (define (view-metadata dbc key)
 ;;   (redis-bytes-get dbc key))
