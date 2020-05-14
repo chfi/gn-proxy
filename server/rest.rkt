@@ -70,19 +70,24 @@
   (define message
     (match (list (bindings-assq #"resource" binds)
                  (bindings-assq #"user" binds)
+                 (bindings-assq #"branch" binds)
                  (bindings-assq #"action" binds))
-      [(list #f #f #f)
+      [(list #f #f #f #f)
        "provide resource id, user id, and action to perform"]
       [(list (binding:form _ res-id)
              (binding:form _ user-id)
+             (binding:form _ branch)
              (binding:form _ action))
-       (let* ((res (get-resource redis-conn res-id))
-              (mask (get-mask-for-user
-                     redis-conn
-                     res
-                     (string->number
-                      (bytes->string/utf-8 user-id)))))
-         (jsexpr->bytes mask))]))
+       (let* ((res (get-resource redis-conn res-id)))
+         (if (access-action redis-conn
+                            res
+                            (string->number
+                             (bytes->string/utf-8 user-id))
+                            (cons (string->symbol
+                                   (bytes->string/utf-8 branch))
+                                  (bytes->string/utf-8 action)))
+             "user has access"
+             "no access"))]))
   (response/output
    (lambda (out)
      (displayln message out))))
@@ -93,7 +98,7 @@
 ;; Run the server (will be moved to another module later)
 (define stop
   (serve
-   #:dispatch (dispatch/servlet query-available)
+   #:dispatch (dispatch/servlet run-action)
    #:listen-ip "127.0.0.1"
    #:port 8080))
 
