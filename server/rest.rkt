@@ -40,7 +40,7 @@
      (displayln message out))))
 
 ;; Query available actions for a resource, for a given user
-(define (query-available req)
+(define (query-available-endpoint req)
   (define binds (request-bindings/raw req))
   (define (masked-actions actions)
     (for/hash ([(k v) (in-hash actions)])
@@ -65,7 +65,7 @@
    (lambda (out)
      (displayln message out))))
 
-(define (run-action req)
+(define (run-action-endpoint req)
   (define binds (request-bindings/raw req))
   (define message
     (match (list (bindings-assq #"resource" binds)
@@ -79,15 +79,18 @@
              (binding:form _ branch)
              (binding:form _ action))
        (let* ((res (get-resource redis-conn res-id)))
-         (if (access-action redis-conn
-                            res
-                            (string->number
-                             (bytes->string/utf-8 user-id))
-                            (cons (string->symbol
-                                   (bytes->string/utf-8 branch))
-                                  (bytes->string/utf-8 action)))
-             "user has access"
-             "no access"))]))
+         (let ((action (access-action redis-conn
+                                      res
+                                      (string->number
+                                       (bytes->string/utf-8 user-id))
+                                      (cons (string->symbol
+                                             (bytes->string/utf-8 branch))
+                                            (bytes->string/utf-8 action)))))
+           (if action
+               (run-action action
+                           (resource-data res)
+                           (hash))
+               "no access")))])
   (response/output
    (lambda (out)
      (displayln message out))))
@@ -98,7 +101,7 @@
 ;; Run the server (will be moved to another module later)
 (define stop
   (serve
-   #:dispatch (dispatch/servlet run-action)
+   #:dispatch (dispatch/servlet run-action-endpoint)
    #:listen-ip "127.0.0.1"
    #:port 8080))
 

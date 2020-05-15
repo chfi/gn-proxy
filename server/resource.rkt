@@ -114,10 +114,9 @@
           (cdr action))
         #f)))
 
-
 (define no-access-action
   (action "no-access"
-          (lambda (_)
+          (lambda (data params)
             'no-access)))
 
 (define view-file

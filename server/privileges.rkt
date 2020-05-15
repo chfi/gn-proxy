@@ -3,6 +3,7 @@
 (provide (struct-out action)
          minimum-access-mask
          maximum-access-mask
+         run-action
          mask-join
          apply-mask
          is-action-set?
@@ -16,10 +17,10 @@
   #:transparent)
 
 
-;; (define (run-action action resource)
-  ;; TODO add check that action matches resource type
-  ;; (let ((data (resource-data resource)))
-  ;; (action-fun
+(define (run-action action data params)
+  ;; TODO add check that action matches resource type by comparing
+  ;; keys in params to req-params field in action
+  (action-fun action) data params)
 
 ;; An action set is the hash-of-lists-of-functions that define the
 ;; actions available on a resource type
