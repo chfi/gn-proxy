@@ -11,7 +11,8 @@
 (struct
   action
   (id
-   fun)
+   fun
+   req-params)
   #:transparent)
 
 

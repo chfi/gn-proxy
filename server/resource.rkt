@@ -115,65 +115,44 @@
         #f)))
 
 
-
-
-;; (define (no-access-action)
-;;   'nothing)
-
 (define no-access-action
   (action "no-access"
-          (lambda ()
+          (lambda (_)
             'no-access)))
-
-;; (define (view-file data)
-;;   (file->string (hash-ref data 'path)
-;;                 #:mode 'text))
-
-;; (define (edit-file path contents)
-;;   (write-to-file contents
-;;                  path
-;;                  #:exists 'replace))
 
 (define view-file
   (action "view"
-          (lambda (data)
+          (lambda (data params)
             (file->string (hash-ref data 'path) #:mode 'text))))
 
 (define edit-file
   (action "edit"
           (lambda (data
-                   #:contents c)
-            (write-to-file c
+                   params)
+            (write-to-file (dict-ref params 'contents)
                            (hash-ref data 'path)
-                           #:exists 'replace))))
-
+                           #:exists 'replace))
+          '(contents)))
 
 
 ;; TODO the dbc should be passed as a Racket parameter rather than an action param
-
-
 ;; params should be provided as keyword arguments
 (define view-metadata
   (action "view"
           (lambda (data
-                   #:redis dbc)
-            (redis-bytes-get dbc
-                             (hash-ref data 'key)))))
+                   params)
+            (redis-bytes-get (dict-ref params 'dbc)
+                             (hash-ref data 'key)))
+          '(dbc)))
 
 (define edit-metadata
   (action "edit"
           (lambda (data
-                   #:redis dbc
-                   #:value value)
-            (redis-bytes-set! dbc
+                   params)
+            (redis-bytes-set! (dict-ref params 'dbc)
                               (hash-ref data 'key)
-                              value))))
-
-;; (define (view-metadata dbc key)
-;;   (redis-bytes-get dbc key))
-
-;; (define (edit-metadata dbc key value)
-;;   (redis-bytes-set! dbc key value))
+                              (dict-ref params 'value)))
+          '(dbc value)))
 
 (define dataset-file-data
   (list (cons "no-access" no-access-action)
