@@ -14,17 +14,16 @@
          get-resource
          resource-set-group-mask
          resource-types
-         resource-actions
          access-action
          serialize-resource
          deserialize-resource)
 
 
-; important: the `data` field in a resource isn't the data itself,
-; instead it contains whatever data is necessary for the resource's
-; actions. The `type` designates what kind of resource it is, e.g.
-; dataset, collection, etc. The actions available depend on the
-; resource type.
+;; NB: the `data` field in a resource isn't the data itself,
+;; instead it contains whatever data is necessary for the resource's
+;; actions. The `type` designates what kind of resource it is, e.g.
+;; dataset, collection, etc. The actions available depend on the
+;; resource type.
 (struct resource
   (name
    owner
@@ -34,6 +33,7 @@
    group-masks)
   #:transparent)
 
+;; Serializes a resource into a JSON bytestring for storage in Redis.
 (define (serialize-resource res)
   (jsexpr->bytes (hash 'name (resource-name res)
                        'owner_id (resource-owner res)
@@ -57,7 +57,12 @@
   (~> (redis-hash-ref dbc "resources" id)
       (deserialize-resource)))
 
-; TODO take owner mask into account
+
+;; Given a resource and a user ID, derive the access mask for that user
+;; based on their group membership as stored in Redis, and return
+;; the appropriate access mask.
+
+;; TODO take owner mask into account
 (define (get-mask-for-user dbc resource user-id)
   (let ([group-masks (resource-group-masks resource)]
         [groups (get-groups-by-member dbc user-id)]
@@ -73,15 +78,24 @@
                  (string->symbol)
                  (hash-ref group-masks _ default-mask))))))
 
-(define (new-file-resource name owner-id path meta-key default-mask)
+;; Constructor for file-based resources
+(define (new-file-resource name
+                           owner-id
+                           path
+                           meta-key
+                           default-mask)
   (resource name
             owner-id
             (hasheq 'path path
-                  'metadata meta-key)
+                    'metadata meta-key)
             'dataset-file
             default-mask
             (hasheq)))
 
+
+;; Helper function for setting the access level for a group on a
+;; resource. Note that this returns the updated resource, which must
+;; then be put into Redis.
 
 ; grp-id must be given as a symbol
 (define (resource-set-group-mask res grp-id mask)
@@ -114,11 +128,13 @@
           (cdr action))
         #f)))
 
+;; The general "no access" action -- may change in the future
 (define no-access-action
   (action "no-access"
           (lambda (data params)
             'no-access)))
 
+;; Actions for file-based resources
 (define view-file
   (action "view"
           (lambda (data params)
@@ -134,8 +150,11 @@
           '(contents)))
 
 
-;; TODO the dbc should be passed as a Racket parameter rather than an action param
-;; params should be provided as keyword arguments
+;; Placeholder metadata actions; for now the metadata is just a single
+;; redis field, will definitely change.
+
+;; TODO the dbc should be passed as a Racket parameter rather than an
+;; action param params should be provided as keyword arguments
 (define view-metadata
   (action "view"
           (lambda (data
@@ -163,12 +182,13 @@
         (cons "view" view-metadata)
         (cons "edit" edit-metadata)))
 
+;; The action set for file-based dataset resources.
 (define dataset-file-actions
   (hasheq 'data dataset-file-data
           'metadata dataset-file-metadata))
 
 
-; A hash mapping resource types to action sets
+;; The global mapping from resource type to action set.
 (define resource-types
   (hash 'dataset-file dataset-file-actions))
     ;; future resource types, for reference (c.f. genenetwork datasets etc.)
@@ -179,13 +199,6 @@
     ;; collection
 
 
-(define (resource-actions res)
-  (hash-ref resource-types
-            (resource-type res)))
-
-; The owner of a resource has complete access.
-(define (owner-mask res-type)
-  (maximum-access-mask (dict-ref resource-types res-type)))
 
 ;; (define (select-publish dbc dataset-id trait-name)
 ;;   (query-row dbc

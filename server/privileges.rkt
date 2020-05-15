@@ -9,6 +9,13 @@
          is-action-set?
          is-mask-for?)
 
+;; The type for actions that can be run on a resource. Actions are
+;; generally, but not always, unique to a single resource type. `fun`
+;; is the actual function that is to be run, and must take two
+;; parameters, one with the resource data, and a hash with any
+;; additional required parameters, e.g. new data when editing
+;; something.
+;; See resource.rkt for examples
 (struct
   action
   (id
@@ -17,29 +24,26 @@
   #:transparent)
 
 
+;; Run the given action on the provided data, with the given additional
+;; parameters.
 (define (run-action action data params)
   ;; TODO add check that action matches resource type by comparing
   ;; keys in params to req-params field in action
   (action-fun action) data params)
 
 ;; An action set is the hash-of-lists-of-functions that define the
-;; actions available on a resource type
+;; actions available on a resource type. The hash level are the
+;; different "branches" of actions, while each branch is a list
+;; of actions of increasing required privilege.
 (define (is-action-set? actions)
   (and (hash? actions)
        (for/and ([(k v) (in-hash actions)])
          (and (dict? v) (list? v)))))
 
-(define (minimum-access-mask actions)
-  (if (hash? actions)
-      (for/hash ([(k v) (in-hash actions)])
-        (values k (caar v)))
-      (error 'not-action-set)))
+;; A mask is a map from action branches to action IDs. In a sense
+;; it is a subset of the action set; though it doesn't actually
+;; contain the actions, it does describe which actions can be used.
 
-(define (maximum-access-mask actions)
-  (if (hash? actions)
-      (for/hash ([(k v) (in-hash actions)])
-        (values k (car (last v))))
-      (error 'not-action-set)))
 
 ;; True if a given mask is a mask for the given action set; this is
 ;; the case if both have the same keys, and each value in the mask
@@ -48,18 +52,38 @@
   (for/and ([(k v) (in-hash actions)])
     (not (false? (assoc (dict-ref mask k) v)))))
 
-(define (mask-index action-line)
+;; Return the mask for an action set that provides the least possible
+;; level of access, i.e. only the first action in each branch.
+(define (minimum-access-mask actions)
+  (if (hash? actions)
+      (for/hash ([(k v) (in-hash actions)])
+        (values k (caar v)))
+      (error 'not-action-set)))
+
+;; Return the mask for an action set that provides full access.
+(define (maximum-access-mask actions)
+  (if (hash? actions)
+      (for/hash ([(k v) (in-hash actions)])
+        (values k (car (last v))))
+      (error 'not-action-set)))
+
+;; Indexing function used to compare the access level of two actions
+;; in a branch.
+(define (mask-index branch)
   (lambda (access-level)
-    (index-of action-line access-level
+    (index-of branch access-level
               (lambda (x y) (string=? (car x) y)))))
 
-; Given an action set and a list of masks, return a mask with the
-; highest access level per pline that was found in the masks.
+;; Return the "total" access that any number of masks for a given
+;; action set cover. The access level for each branch is set to
+;; the highest among the masks.
 (define (mask-join actions . masks)
   (for/hasheq ([(k v) (in-hash actions)])
     (values k (argmax (mask-index v)
                       (map (curryr dict-ref k) masks)))))
 
+;; Return a subset for the given action set as delimited by the mask.
+;; The result is the accessible action set.
 (define (apply-mask actions mask)
   (if (is-mask-for? actions mask)
       (for/hash ([(k v) (in-hash actions)])
