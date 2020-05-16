@@ -132,13 +132,15 @@
 (define no-access-action
   (action "no-access"
           (lambda (data params)
-            'no-access)))
+            'no-access)
+          '()))
 
 ;; Actions for file-based resources
 (define view-file
   (action "view"
           (lambda (data params)
-            (file->string (hash-ref data 'path) #:mode 'text))))
+            (file->string (hash-ref data 'path) #:mode 'text))
+          '()))
 
 (define edit-file
   (action "edit"
@@ -200,38 +202,38 @@
 
 
 
-;; (define (select-publish dbc dataset-id trait-name)
-;;   (query-row dbc
-;;              "SELECT
-;;                       PublishXRef.Id, InbredSet.InbredSetCode, Publication.PubMed_ID,
-;;                       Phenotype.Pre_publication_description, Phenotype.Post_publication_description, Phenotype.Original_description,
-;;                       Phenotype.Pre_publication_abbreviation, Phenotype.Post_publication_abbreviation,
-;;                       Phenotype.Lab_code, Phenotype.Submitter, Phenotype.Owner, Phenotype.Authorized_Users,
-;;                       Publication.Authors, Publication.Title, Publication.Abstract,
-;;                       Publication.Journal, Publication.Volume, Publication.Pages,
-;;                       Publication.Month, Publication.Year, PublishXRef.Sequence,
-;;                       Phenotype.Units, PublishXRef.comments
-;;                 FROM
-;;                       PublishXRef, Publication, Phenotype, PublishFreeze, InbredSet
-;;                 WHERE
-;;                       PublishXRef.Id = ? AND
-;;                       Phenotype.Id = PublishXRef.PhenotypeId AND
-;;                       Publication.Id = PublishXRef.PublicationId AND
-;;                       PublishXRef.InbredSetId = PublishFreeze.InbredSetId AND
-;;                       PublishXRef.InbredSetId = InbredSet.Id AND
-;;                       PublishFreeze.Id = ?"
-;;              trait-name
-;;              dataset-id))
+(define (select-publish dbc dataset-id trait-name)
+  (query-rows dbc
+             "SELECT
+                      PublishXRef.Id, InbredSet.InbredSetCode, Publication.PubMed_ID,
+                      Phenotype.Pre_publication_description, Phenotype.Post_publication_description, Phenotype.Original_description,
+                      Phenotype.Pre_publication_abbreviation, Phenotype.Post_publication_abbreviation,
+                      Phenotype.Lab_code, Phenotype.Submitter, Phenotype.Owner, Phenotype.Authorized_Users,
+                      Publication.Authors, Publication.Title, Publication.Abstract,
+                      Publication.Journal, Publication.Volume, Publication.Pages,
+                      Publication.Month, Publication.Year, PublishXRef.Sequence,
+                      Phenotype.Units, PublishXRef.comments
+                FROM
+                      PublishXRef, Publication, Phenotype, PublishFreeze, InbredSet
+                WHERE
+                      PublishXRef.Id = ? AND
+                      Phenotype.Id = PublishXRef.PhenotypeId AND
+                      Publication.Id = PublishXRef.PublicationId AND
+                      PublishXRef.InbredSetId = PublishFreeze.InbredSetId AND
+                      PublishXRef.InbredSetId = InbredSet.Id AND
+                      PublishFreeze.Id = ?"
+             trait-name
+             dataset-id))
 
 
 
-;; (define (select-geno dbc dataset-name trait-name)
-;;   (query-row dbc
-;;              "SELECT Geno.name Geno.chr Geno.mb Geno.source2 Geno.sequence
-;;               FROM Geno, GenoFreeze, GenoXRef
-;;               WHERE GenoXRef.GenoFreezeId = GenoFreeze.Id AND
-;;                     GenoXRef.GenoId = Geno.Id AND
-;;                     GenoFreeze.Name = ? AND
-;;                     Geno.Name = ?"
-;;              dataset-name
-;;              trait-name))
+(define (select-geno dbc dataset-name trait-name)
+  (query-rows dbc
+             "SELECT Geno.name, Geno.chr, Geno.mb, Geno.source2, Geno.sequence
+              FROM Geno, GenoFreeze, GenoXRef
+              WHERE GenoXRef.GenoFreezeId = GenoFreeze.Id AND
+                    GenoXRef.GenoId = Geno.Id AND
+                    GenoFreeze.Name = ? AND
+                    Geno.Name = ?"
+             dataset-name
+             trait-name))
