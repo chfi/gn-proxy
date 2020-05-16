@@ -190,16 +190,6 @@
           'metadata dataset-file-metadata))
 
 
-;; The global mapping from resource type to action set.
-(define resource-types
-  (hash 'dataset-file dataset-file-actions))
-    ;; future resource types, for reference (c.f. genenetwork datasets etc.)
-    ;; dataset-publish
-    ;; dataset-probeset
-    ;; dataset-geno
-    ;; dataset-temp
-    ;; collection
-
 
 
 (define (select-publish dbc dataset-id trait-name)
@@ -226,7 +216,23 @@
              dataset-id))
 
 
+;; The dataset-geno resource type
+;; Currently only read actions
 
+(define (new-geno-resource name
+                           owner-id
+                           dataset-name
+                           trait-name
+                           default-mask)
+  (resource name
+            owner-id
+            (hasheq 'dataset dataset-name
+                    'trait trait-name)
+            'dataset-file
+            default-mask
+            (hasheq)))
+
+;; TODO this should serialize into JSON to be sent by the REST API
 (define (select-geno dbc dataset-name trait-name)
   (query-rows dbc
              "SELECT Geno.name, Geno.chr, Geno.mb, Geno.source2, Geno.sequence
@@ -237,3 +243,30 @@
                     Geno.Name = ?"
              dataset-name
              trait-name))
+
+(define view-geno
+  (action "view"
+          (lambda (data
+                   params)
+            (select-geno (dict-ref params 'dbc)
+                         (hash-ref data 'dataset)
+                         (hash-ref data 'trait)))
+          '(dbc)))
+
+(define dataset-geno-data
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-geno)))
+
+(define dataset-geno-actions
+  (hasheq 'data dataset-geno-data))
+
+;; The global mapping from resource type to action set.
+(define resource-types
+  (hash 'dataset-file dataset-file-actions
+        'dataset-geno dataset-geno-actions))
+    ;; future resource types, for reference (c.f. genenetwork datasets etc.)
+    ;; dataset-publish
+    ;; dataset-probeset
+    ;; dataset-geno
+    ;; dataset-temp
+    ;; collection
