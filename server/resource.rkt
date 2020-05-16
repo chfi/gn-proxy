@@ -227,7 +227,7 @@
             owner-id
             (hasheq 'dataset dataset-name
                     'trait trait-name)
-            'dataset-file
+            'dataset-geno
             default-mask
             (hasheq)))
 
@@ -247,8 +247,7 @@
   (action "view"
           (lambda (data
                    params)
-            (select-geno (mysql-conn)
-                         (hash-ref data 'dataset)
+            (select-geno (hash-ref data 'dataset)
                          (hash-ref data 'trait)))
           '()))
 
