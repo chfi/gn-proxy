@@ -53,8 +53,8 @@
               (parse 'default_mask)
               (parse 'group_masks))))
 
-(define (get-resource dbc id)
-  (~> (redis-hash-ref dbc "resources" id)
+(define (get-resource id)
+  (~> (redis-hash-ref (redis-conn) "resources" id)
       (deserialize-resource)))
 
 
@@ -63,9 +63,9 @@
 ;; the appropriate access mask.
 
 ;; TODO take owner mask into account
-(define (get-mask-for-user dbc resource user-id)
+(define (get-mask-for-user resource user-id)
   (let ([group-masks (resource-group-masks resource)]
-        [groups (get-groups-by-member dbc user-id)]
+        [groups (get-groups-by-member (redis-conn) user-id)]
         [default-mask (resource-default-mask resource)])
     (apply mask-join
            (dict-ref resource-types (resource-type resource))
@@ -114,11 +114,10 @@
 ;; Return the action, as defined by a pair of a branch name and action
 ;; name, for a given resource, as accessible by the given user.
 ;; Returns #f if the user does not have access.
-(define (access-action dbc res user-id action-pair)
+(define (access-action res user-id action-pair)
   (let ((branch-id (car action-pair))
         (action-id (cdr action-pair))
-        (mask (get-mask-for-user dbc
-                                 res
+        (mask (get-mask-for-user res
                                  user-id))
         (action-set (dict-ref resource-types (resource-type res))))
     (if (string=? (hash-ref mask branch-id #f)
@@ -161,18 +160,18 @@
   (action "view"
           (lambda (data
                    params)
-            (redis-bytes-get (dict-ref params 'dbc)
+            (redis-bytes-get (redis-conn)
                              (hash-ref data 'key)))
-          '(dbc)))
+          '()))
 
 (define edit-metadata
   (action "edit"
           (lambda (data
                    params)
-            (redis-bytes-set! (dict-ref params 'dbc)
+            (redis-bytes-set! (redis-conn)
                               (hash-ref data 'key)
                               (dict-ref params 'value)))
-          '(dbc value)))
+          '(value)))
 
 (define dataset-file-data
   (list (cons "no-access" no-access-action)
@@ -192,8 +191,8 @@
 
 
 
-(define (select-publish dbc dataset-id trait-name)
-  (query-rows dbc
+(define (select-publish dataset-id trait-name)
+  (query-rows (mysql-conn)
              "SELECT
                       PublishXRef.Id, InbredSet.InbredSetCode, Publication.PubMed_ID,
                       Phenotype.Pre_publication_description, Phenotype.Post_publication_description, Phenotype.Original_description,
@@ -233,8 +232,8 @@
             (hasheq)))
 
 ;; TODO this should serialize into JSON to be sent by the REST API
-(define (select-geno dbc dataset-name trait-name)
-  (query-rows dbc
+(define (select-geno dataset-name trait-name)
+  (query-rows (mysql-conn)
              "SELECT Geno.name, Geno.chr, Geno.mb, Geno.source2, Geno.sequence
               FROM Geno, GenoFreeze, GenoXRef
               WHERE GenoXRef.GenoFreezeId = GenoFreeze.Id AND
@@ -248,10 +247,10 @@
   (action "view"
           (lambda (data
                    params)
-            (select-geno (dict-ref params 'dbc)
+            (select-geno (mysql-conn)
                          (hash-ref data 'dataset)
                          (hash-ref data 'trait)))
-          '(dbc)))
+          '()))
 
 (define dataset-geno-data
   (list (cons "no-access" no-access-action)

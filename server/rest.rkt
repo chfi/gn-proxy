@@ -16,8 +16,6 @@
 
 ;;;; Endpoints
 
-(define redis-conn (connect-redis))
-
 ;; example endpoint
 (define (age req)
   (define binds (request-bindings/raw req))
@@ -52,13 +50,15 @@
        "provide resource and user id"]
       [(list (binding:form _ res-id)
              (binding:form _ user-id))
-       (let* ((res (get-resource redis-conn res-id))
+       (let* ((res (get-resource res-id))
               (mask (get-mask-for-user
-                     redis-conn
+                     (redis-conn)
                      res
                      (string->number
                       (bytes->string/utf-8 user-id)))))
-         (~> (apply-mask (resource-actions res) mask)
+         (~> (apply-mask (dict-ref resource-types
+                                   (resource-type res))
+                         mask)
              (masked-actions)
              (jsexpr->bytes)))]))
   (response/output
@@ -78,9 +78,8 @@
              (binding:form _ user-id)
              (binding:form _ branch)
              (binding:form _ action))
-       (let* ((res (get-resource redis-conn res-id)))
-         (let ((action (access-action redis-conn
-                                      res
+       (let* ((res (get-resource res-id)))
+         (let ((action (access-action res
                                       (string->number
                                        (bytes->string/utf-8 user-id))
                                       (cons (string->symbol
@@ -90,7 +89,7 @@
                (run-action action
                            (resource-data res)
                            (hash))
-               "no access")))])
+               "no access")))]))
   (response/output
    (lambda (out)
      (displayln message out))))

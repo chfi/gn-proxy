@@ -29,7 +29,7 @@
 (define (run-action action data params)
   ;; TODO add check that action matches resource type by comparing
   ;; keys in params to req-params field in action
-  (action-fun action) data params)
+  ((action-fun action) data params))
 
 ;; An action set is the hash-of-lists-of-functions that define the
 ;; actions available on a resource type. The hash level are the
