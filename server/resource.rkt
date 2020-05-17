@@ -205,8 +205,10 @@
 
 
 (define (select-publish dataset-id trait-name)
-  (query-rows (mysql-conn)
-             "SELECT
+  (jsexpr->bytes
+   (vector->list
+    (query-row (mysql-conn)
+               "SELECT
                       PublishXRef.Id, InbredSet.InbredSetCode, Publication.PubMed_ID,
                       Phenotype.Pre_publication_description, Phenotype.Post_publication_description, Phenotype.Original_description,
                       Phenotype.Pre_publication_abbreviation, Phenotype.Post_publication_abbreviation,
@@ -225,7 +227,7 @@
                       PublishXRef.InbredSetId = InbredSet.Id AND
                       PublishFreeze.Id = ?"
              trait-name
-             dataset-id))
+             dataset-id))))
 
 (define view-publish
   (action "view"
@@ -260,15 +262,17 @@
 
 ;; TODO this should serialize into JSON to be sent by the REST API
 (define (select-geno dataset-name trait-name)
-  (query-rows (mysql-conn)
-             "SELECT Geno.name, Geno.chr, Geno.mb, Geno.source2, Geno.sequence
-              FROM Geno, GenoFreeze, GenoXRef
-              WHERE GenoXRef.GenoFreezeId = GenoFreeze.Id AND
-                    GenoXRef.GenoId = Geno.Id AND
-                    GenoFreeze.Name = ? AND
-                    Geno.Name = ?"
-             dataset-name
-             trait-name))
+  (jsexpr->bytes
+   (vector->list
+    (query-row (mysql-conn)
+               "SELECT Geno.name, Geno.chr, Geno.mb, Geno.source2, Geno.sequence
+                FROM Geno, GenoFreeze, GenoXRef
+                WHERE GenoXRef.GenoFreezeId = GenoFreeze.Id AND
+                      GenoXRef.GenoId = Geno.Id AND
+                      GenoFreeze.Name = ? AND
+                      Geno.Name = ?"
+                dataset-name
+                trait-name))))
 
 (define view-geno
   (action "view"
