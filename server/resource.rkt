@@ -187,6 +187,22 @@
 
 
 
+;; The dataset-publish resource type
+;; Currently only read actions
+
+(define (new-publish-resource name
+                           owner-id
+                           dataset-id
+                           trait-name
+                           default-mask)
+  (resource name
+            owner-id
+            (hasheq 'dataset dataset-id
+                    'trait trait-name)
+            'dataset-publish
+            default-mask
+            (hasheq)))
+
 
 (define (select-publish dataset-id trait-name)
   (query-rows (mysql-conn)
@@ -211,6 +227,20 @@
              trait-name
              dataset-id))
 
+(define view-publish
+  (action "view"
+          (lambda (data
+                   params)
+            (select-geno (hash-ref data 'dataset)
+                         (hash-ref data 'trait)))
+          '()))
+
+(define dataset-publish-data
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-publish)))
+
+(define dataset-publish-actions
+  (hasheq 'data dataset-publish-data))
 
 ;; The dataset-geno resource type
 ;; Currently only read actions
@@ -258,6 +288,7 @@
 ;; The global mapping from resource type to action set.
 (define resource-types
   (hash 'dataset-file dataset-file-actions
+        'dataset-publish dataset-publish-actions
         'dataset-geno dataset-geno-actions))
     ;; future resource types, for reference (c.f. genenetwork datasets etc.)
     ;; dataset-publish
