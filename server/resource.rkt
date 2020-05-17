@@ -115,17 +115,14 @@
 ;; name, for a given resource, as accessible by the given user.
 ;; Returns #f if the user does not have access.
 (define (access-action res user-id action-pair)
-  (let ((branch-id (car action-pair))
-        (action-id (cdr action-pair))
-        (mask (get-mask-for-user res
-                                 user-id))
-        (action-set (dict-ref resource-types (resource-type res))))
-    (if (string=? (hash-ref mask branch-id #f)
-                  action-id)
-        (let* ((branch (hash-ref action-set branch-id))
-               (action (assoc action-id branch)))
-          (cdr action))
-        #f)))
+  (let* ((branch-id (car action-pair))
+         (action-id (cdr action-pair))
+         (mask (get-mask-for-user res
+                                  user-id))
+         (action-set (apply-mask (dict-ref resource-types (resource-type res))
+                                mask)))
+
+    (cdr (assoc action-id (hash-ref action-set branch-id)))))
 
 ;; The general "no access" action -- may change in the future
 (define no-access-action
