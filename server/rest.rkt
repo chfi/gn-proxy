@@ -8,6 +8,7 @@
          web-server/http
          web-server/servlet-dispatch
          web-server/web-server
+         web-server/http/bindings
          "db.rkt"
          "groups.rkt"
          "privileges.rkt"
@@ -65,6 +66,15 @@
    (lambda (out)
      (displayln message out))))
 
+(define (action-params action binds)
+  (for/hash ([k (action-req-params action)])
+    (values k
+            (~> k
+                (symbol->string)
+                (string->bytes/utf-8)
+                (bindings-assq _ binds)
+                (binding:form-value)))))
+
 (define (run-action-endpoint req)
   (define binds (request-bindings/raw req))
   (define message
@@ -88,11 +98,12 @@
            (if action
                (run-action action
                            (resource-data res)
-                           (hash))
+                           (action-params action binds))
                "no access")))]))
   (response/output
    (lambda (out)
      (displayln message out))))
+
 
 ;; Attempt to run an action on a resource as a given user
 ;; TODO
