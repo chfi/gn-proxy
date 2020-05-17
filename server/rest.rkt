@@ -6,9 +6,13 @@
          threading
          racket/match
          web-server/http
+         web-server/http/response
+         web-server/http/bindings
          web-server/servlet-dispatch
          web-server/web-server
-         web-server/http/bindings
+         (prefix-in filter: web-server/dispatchers/dispatch-filter)
+         (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
+
          "db.rkt"
          "groups.rkt"
          "privileges.rkt"
@@ -16,27 +20,6 @@
 
 
 ;;;; Endpoints
-
-;; example endpoint
-(define (age req)
-  (define binds (request-bindings/raw req))
-  (define message
-    (match (list (bindings-assq #"name" binds)
-                 (bindings-assq #"age" binds))
-      [(list #f #f)
-       "Anonymous is unknown years old."]
-
-      [(list #f (binding:form _ age))
-       (format "Anonymous is ~a years old." age)]
-
-      [(list (binding:form _ name) #f)
-       (format "~a is unknown years old." name)]
-      [(list (binding:form _ name)
-             (binding:form _ age))
-       (format "~a is ~a years old." name age)]))
-  (response/output
-   (lambda (out)
-     (displayln message out))))
 
 ;; Query available actions for a resource, for a given user
 (define (query-available-endpoint req)
@@ -53,7 +36,6 @@
              (binding:form _ user-id))
        (let* ((res (get-resource res-id))
               (mask (get-mask-for-user
-                     (redis-conn)
                      res
                      (string->number
                       (bytes->string/utf-8 user-id)))))
@@ -65,6 +47,9 @@
   (response/output
    (lambda (out)
      (displayln message out))))
+
+(define (query-available-dispatcher conn req)
+  (output-response conn (query-available-endpoint req)))
 
 (define (action-params action binds)
   (for/hash ([k (action-req-params action)])
@@ -104,6 +89,10 @@
    (lambda (out)
      (displayln message out))))
 
+(define (run-action-dispatcher conn req)
+  (output-response conn (run-action-endpoint req)))
+
+
 
 ;; Attempt to run an action on a resource as a given user
 ;; TODO
@@ -111,7 +100,12 @@
 ;; Run the server (will be moved to another module later)
 (define stop
   (serve
-   #:dispatch (dispatch/servlet run-action-endpoint)
+   #:dispatch (sequencer:make
+               (filter:make #rx"^/available/"
+                            query-available-dispatcher)
+               (filter:make #rx"^/run-action/"
+                            run-action-dispatcher))
+   ;; #:dispatch (dispatch/servlet run-action-endpoint)
    #:listen-ip "127.0.0.1"
    #:port 8080))
 
