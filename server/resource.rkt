@@ -191,10 +191,10 @@
 ;; Currently only read actions
 
 (define (new-publish-resource name
-                           owner-id
-                           dataset-id
-                           trait-name
-                           default-mask)
+                              owner-id
+                              dataset-id
+                              trait-name
+                              default-mask)
   (resource name
             owner-id
             (hasheq 'dataset dataset-id

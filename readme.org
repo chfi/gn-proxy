@@ -1,0 +1,62 @@
+* GN proxy & access control
+
+** Redis and MariaDB connections
+
+The database connections are defined in db.rkt, and are handled by
+the ~redis~ and ~db~ packages respectively. Right now they are
+configured in code, not by a config file.
+
+Docs:
+- https://docs.racket-lang.org/redis@redis-doc/index.html
+- https://docs.racket-lang.org/db/connect.html
+
+** Resources
+
+Resources can be created using the constructors in Racket (e.g.
+~new-geno-resource~), and then serialized into stringified JSON using
+~serialize-resource~, which can then be inserted into Redis.
+
+This is an example of the JSON representation of a resource. The only
+fields that will differ between resource types are "type", "data", and
+the mask fields. The "type" must be one of the keys in the ~resource-type~
+hash defined in resource.rkt, and the "data" and mask fields depend
+on the resource type.
+
+#+begin_src js
+{ "name": "r1",
+  "owner_id": 0,
+  "data": { "path": "test1.txt",
+            "metadata": "test1" },
+  "type": "dataset-file",
+  "default_mask" : { "metadata": "no-access",
+                     "data": "no-access"},
+  "group_masks": {"0": {"metadata": "edit",
+                        "data": "edit"}
+                 }
+}
+#+end_src
+
+
+For reference, these are the types currently defined, along with their
+data and mask formats:
+
+*** dataset-file
+~data~ should be a hash containing two fields, ~path~ which is a path
+to the data file, and ~metadata~ which is a Redis key containing
+some metadata.
+
+This type was created mainly for testing, hence its simplicity.
+
+*** dataset-geno
+
+~data~ should be a hash containing two fields, ~dataset~ which is
+the name of a genotype dataset, and ~trait~ which is the name
+of a trait dataset. These are ~dataset.name~ and ~trait.name~
+in the Python query, respectively. One example is "BXDGeno"
+for the dataset name, and "rs3657281" for the trait name.
+
+*** dataset-publish
+
+~data~ should be a hash containing two fields, ~dataset~ and
+~trait~. The Python equivalents are ~dataset.id~ and ~trait.name~,
+respectively.
