@@ -204,9 +204,16 @@
             (hasheq)))
 
 
-(define (select-publish dataset-id trait-name)
+;; Function that serializes an SQL result row into a stringified JSON
+;; array. Probably doesn't work with all SQL types yet!!
+(define (sql-result->json query-result)
   (jsexpr->bytes
-   (vector->list
+   (map (lambda (x)
+          (if (sql-null? x) 'null x))
+        (vector->list query-result))))
+
+(define (select-publish dataset-id trait-name)
+  (sql-result->json
     (query-row (mysql-conn)
                "SELECT
                       PublishXRef.Id, InbredSet.InbredSetCode, Publication.PubMed_ID,
@@ -227,7 +234,7 @@
                       PublishXRef.InbredSetId = InbredSet.Id AND
                       PublishFreeze.Id = ?"
              trait-name
-             dataset-id))))
+             dataset-id)))
 
 (define view-publish
   (action "view"
@@ -262,8 +269,7 @@
 
 ;; TODO this should serialize into JSON to be sent by the REST API
 (define (select-geno dataset-name trait-name)
-  (jsexpr->bytes
-   (vector->list
+  (sql-result->json
     (query-row (mysql-conn)
                "SELECT Geno.name, Geno.chr, Geno.mb, Geno.source2, Geno.sequence
                 FROM Geno, GenoFreeze, GenoXRef
@@ -272,7 +278,7 @@
                       GenoFreeze.Name = ? AND
                       Geno.Name = ?"
                 dataset-name
-                trait-name))))
+                trait-name)))
 
 (define view-geno
   (action "view"
