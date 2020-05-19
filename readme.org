@@ -94,3 +94,19 @@ A JSON example:
 The query is defined in the same module as dataset-geno, as the
 function ~select-publish~. The query result is transformed into
 a JSON array, with SQL nulls replaced by JSON nulls.
+
+** Defining new resource types
+To define a new resource type, the ~resource-types~ hash in
+~resource.rkt~ must be extended with an entry mapping the new resource
+type name (as a symbol) to the corresponding action set.
+
+An action set is a hash of action "branches", which are alists that
+map the name of each action (as a string) to the corresponding
+~action~. An ~action~ is a value of the ~action~ struct, defined in
+~privileges.rkt~, and is a function of two arguments, along with the
+names of any additional parameters that need to be provided by the
+user (e.g. in the request to the REST endpoint).
+
+It's probably best to just look at how one of the existing resource
+types are defined, and ~dataset-geno~ is one of the simplest, while
+still querying the SQL database.
