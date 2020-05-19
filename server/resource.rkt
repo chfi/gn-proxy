@@ -87,17 +87,21 @@
 (define (get-mask-for-user resource user-id)
   (let ([group-masks (resource-group-masks resource)]
         [groups (get-groups-by-member (redis-conn) user-id)]
-        [default-mask (resource-default-mask resource)])
+        [initial-mask (if (eq? (resource-owner resource) user-id)
+                          (maximum-access-mask
+                           (dict-ref resource-types
+                                     (resource-type resource)))
+                          (resource-default-mask resource))])
     (apply mask-join
            (dict-ref resource-types (resource-type resource))
-           default-mask
+           initial-mask
            (for/list ([g groups])
       ; the redis library requires symbols for keys, but the values
       ; are bytestrings...
              (~> (group-id g)
                  (bytes->string/utf-8)
                  (string->symbol)
-                 (hash-ref group-masks _ default-mask))))))
+                 (hash-ref group-masks _ initial-mask))))))
 
 ;; Constructor for file-based resources
 (define (new-file-resource name
