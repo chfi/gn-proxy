@@ -36,9 +36,7 @@ on the resource type.
 }
 #+end_src
 
-
-For reference, these are the types currently defined, along with their
-data and mask formats:
+For reference, these are the types currently defined:
 
 *** dataset-file
 ~data~ should be a hash containing two fields, ~path~ which is a path
@@ -48,15 +46,51 @@ some metadata.
 This type was created mainly for testing, hence its simplicity.
 
 *** dataset-geno
-
 ~data~ should be a hash containing two fields, ~dataset~ which is
 the name of a genotype dataset, and ~trait~ which is the name
 of a trait dataset. These are ~dataset.name~ and ~trait.name~
 in the Python query, respectively. One example is "BXDGeno"
 for the dataset name, and "rs3657281" for the trait name.
 
+Currently this only has one action branch, and really only one
+action, namely viewing data.
+
+A JSON example:
+#+begin_src js
+{ "name": "some-resource",
+  "owner_id": 0,
+  "data": { "dataset": "BXDGeno",
+            "trait": "rs365781" },
+  "type": "dataset-geno",
+  "default_mask" : { "data": "view" },
+  "group_masks": { "0": {"data": "view"} }
+}
+#+end_src
+
+The query is defined in the function ~select-geno~, in ~resource.rkt~,
+and the result is provided as a string-encoded JSON array, transformed
+straight from the SQL result.
+
 *** dataset-publish
 
-~data~ should be a hash containing two fields, ~dataset~ and
-~trait~. The Python equivalents are ~dataset.id~ and ~trait.name~,
-respectively.
+~data~ should be a hash containing two fields, ~dataset~ and ~trait~.
+The Python equivalents are ~dataset.id~ and ~trait.name~,
+respectively. The action set is essentially the same as for
+dataset-geno.
+
+A JSON example:
+#+begin_src js
+{ "name": "some-resource",
+  "owner_id": 0,
+  "data": { "dataset": "1",
+            "trait": "17465" },
+  "type": "dataset-publish",
+  "default_mask" : { "data": "view" },
+  "group_masks": { "0": {"data": "view"} }
+}
+#+end_src
+
+
+The query is defined in the same module as dataset-geno, as the
+function ~select-publish~. The query result is transformed into
+a JSON array, with SQL nulls replaced by JSON nulls.
