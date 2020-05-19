@@ -33,13 +33,33 @@
    group-masks)
   #:transparent)
 
+
+;; The Racket JSON library can only transform hashes that have
+;; symbol keys -- but Redis only deals with strings and bytestrings.
+;; These functions transform the keys of a hash between the two.
+
+(define (hash-symbol->string h)
+  (for/hash ([(k v) (in-hash h)])
+    (values (~> k
+                (symbol->string)
+                (string->bytes/utf-8))
+            v)))
+
+(define (hash-string->symbol h)
+  (for/hash ([(k v) (in-hash h)])
+    (values (~> k
+                (bytes->string/utf-8)
+                (string->symbol))
+            v)))
+
 ;; Serializes a resource into a JSON bytestring for storage in Redis.
 (define (serialize-resource res)
   (jsexpr->bytes (hash 'name (resource-name res)
                        'owner_id (resource-owner res)
                        'data (resource-data res)
                        'type (symbol->string (resource-type res))
-                       'default_mask (resource-default-mask res)
+                       'default_mask (hash-symbol->string
+                                      (resource-default-mask res))
                        'group_masks (resource-group-masks res))))
 
 (define (deserialize-resource res)
@@ -50,7 +70,8 @@
               (parse 'owner_id)
               (parse 'data)
               (string->symbol (parse 'type))
-              (parse 'default_mask)
+              (hash-string->symbol
+               (parse 'default_mask))
               (parse 'group_masks))))
 
 (define (get-resource id)

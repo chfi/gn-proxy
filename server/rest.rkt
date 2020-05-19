@@ -12,7 +12,6 @@
          web-server/web-server
          (prefix-in filter: web-server/dispatchers/dispatch-filter)
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
-
          "db.rkt"
          "groups.rkt"
          "privileges.rkt"
@@ -37,8 +36,9 @@
        (let* ((res (get-resource res-id))
               (mask (get-mask-for-user
                      res
-                     (string->number
-                      (bytes->string/utf-8 user-id)))))
+                     (~> user-id
+                         (bytes->string/utf-8)
+                         (string->number)))))
          (~> (apply-mask (dict-ref resource-types
                                    (resource-type res))
                          mask)
@@ -73,13 +73,16 @@
              (binding:form _ user-id)
              (binding:form _ branch)
              (binding:form _ action))
-       (let* ((res (get-resource res-id)))
+       (let* ((res (get-resource res-id))
+              (branch (~> branch
+                          (bytes->string/utf-8)
+                          (string->symbol)))
+              (action (bytes->string/utf-8 action)))
          (let ((action (access-action res
-                                      (string->number
-                                       (bytes->string/utf-8 user-id))
-                                      (cons (string->symbol
-                                             (bytes->string/utf-8 branch))
-                                            (bytes->string/utf-8 action)))))
+                                      (~> user-id
+                                          (bytes->string/utf-8)
+                                          (string->number))
+                                      (cons branch action))))
            (if action
                (run-action action
                            (resource-data res)
@@ -91,11 +94,6 @@
 
 (define (run-action-dispatcher conn req)
   (output-response conn (run-action-endpoint req)))
-
-
-
-;; Attempt to run an action on a resource as a given user
-;; TODO
 
 ;; Run the server (will be moved to another module later)
 (define stop
