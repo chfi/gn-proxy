@@ -292,7 +292,6 @@
             default-mask
             (hasheq)))
 
-;; TODO this should serialize into JSON to be sent by the REST API
 (define (select-geno dataset-name trait-name)
   (sql-result->json
     (query-row (mysql-conn)
@@ -320,11 +319,60 @@
 (define dataset-geno-actions
   (hasheq 'data dataset-geno-data))
 
+
+
+;; The dataset-probe resource type
+;; Currently only read actions
+
+
+(define (new-probe-resource name
+                            owner-id
+                            dataset-name
+                            trait-name
+                            default-mask)
+  (resource name
+            owner-id
+            (hasheq 'dataset dataset-name
+                    'trait trait-name)
+            'dataset-probe
+            default-mask
+            (hasheq)))
+
+(define (select-probe dataset-name trait-name)
+  (sql-result->json
+    (query-row (mysql-conn)
+               "SELECT Probe.Sequence, Probe.Name
+                FROM Probe, ProbeSet, ProbeSetFreeze, ProbeSetXRef
+                WHERE ProbeSetXRef.ProbeSetFreezeId = ProbeSetFreeze.Id AND
+                      ProbeSetXRef.ProbeSetId = ProbeSet.Id AND
+                      ProbeSetFreeze.Name = ? AND
+                      ProbeSet.Name = ? AND
+                      Probe.ProbeSetId = ProbeSet.Id order by Probe.SerialOrder"
+                dataset-name
+                trait-name)))
+
+(define view-probe
+  (action "view"
+          (lambda (data
+                   params)
+            (select-probe (hash-ref data 'dataset)
+                          (hash-ref data 'trait)))
+          '()))
+
+(define dataset-probe-data
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-probe)))
+
+(define dataset-probe-actions
+  (hasheq 'data dataset-probe-data))
+
+
 ;; The global mapping from resource type to action set.
 (define resource-types
   (hash 'dataset-file dataset-file-actions
         'dataset-publish dataset-publish-actions
-        'dataset-geno dataset-geno-actions))
+        'dataset-geno dataset-geno-actions
+        'dataset-probe dataset-probe-actions))
     ;; future resource types, for reference (c.f. genenetwork datasets etc.)
     ;; dataset-publish
     ;; dataset-probeset
