@@ -1,0 +1,196 @@
+* Integration guide/process
+
+[2020-05-19 Tue]
+
+Here I'll be documenting the process of replacing the SQL queries in
+GN2's show_trait.py, including creating the proxy resource types, and
+populating Redis with resource entries.
+
+
+** Queries
+
+These are all taken from show_trait.py.
+
+*** Probe and ProbeSet queries
+
+This query is used twice, starting at line 78, then 97.
+Line 78 and 97
+#+begin_src python
+
+query1 = """SELECT Probe.Sequence, Probe.Name
+            FROM Probe, ProbeSet, ProbeSetFreeze, ProbeSetXRef
+            WHERE ProbeSetXRef.ProbeSetFreezeId = ProbeSetFreeze.Id AND
+                  ProbeSetXRef.ProbeSetId = ProbeSet.Id AND
+                  ProbeSetFreeze.Name = '%s' AND
+                  ProbeSet.Name = '%s' AND
+                  Probe.ProbeSetId = ProbeSet.Id order by Probe.SerialOrder"""
+            % (self.this_trait.dataset.name, self.this_trait.name)
+#+end_src
+
+To define a proxy resource type to take the place of this, we need to
+define an action set, and associate it with the resource type name
+in the ~resource-types~ hashmap in ~resource.rkt~. For convenience
+it's also good to have a constructor function to create new instances
+of the resource in Racket, though it's also possible to directly craft
+the JSON and put it in Redis.
+
+
+First we need to translate this Python query into Racket. Racket's
+~db~ library provides a simple and effective way (though not very
+secure) of constructing queries from strings akin to Python's string
+format method.
+
+The function for running the above query in Racket is as follows:
+
+#+begin_src racket
+(define (select-probe dataset-name trait-name)
+  (sql-result->json
+    (query-row (mysql-conn)
+               "SELECT Probe.Sequence, Probe.Name
+                FROM Probe, ProbeSet, ProbeSetFreeze, ProbeSetXRef
+                WHERE ProbeSetXRef.ProbeSetFreezeId = ProbeSetFreeze.Id AND
+                      ProbeSetXRef.ProbeSetId = ProbeSet.Id AND
+                      ProbeSetFreeze.Name = ? AND
+                      ProbeSet.Name = ? AND
+                      Probe.ProbeSetId = ProbeSet.Id order by Probe.SerialOrder"
+                dataset-name
+                trait-name)))
+#+end_src
+
+~dataset-name~ corresponds to ~self.this_trait.dataset.name~ in the
+Python version, ~trait-name~ to ~self.this_trait.name~. ~query-row~
+takes a database connection, a query string, and a number of values to
+interpolate into the string. Question marks in the query string are
+replaced with those values.
+
+~mysql-conn~ is a Racket parameter, defined in ~db.rkt~, and can
+be viewed as a function that returns the global database connection,
+though it can be changed on a per-thread basis -- nothing we need
+to worry about quite yet!
+
+~sql-result->json~ is a function defined in ~resource.rkt~ that
+transforms the query result into a JSON array, transforming
+SQL nulls into JSON nulls. In the future, we may have to extend
+this function to transform other SQL types into JSON, but it's
+enough for now.
+
+~select-probe~ is just a function, now we need to make it into an
+action. More specifically, we need to define a value of the ~action~
+struct (defined in ~privileges.rkt~) that tells the proxy how the
+function should be used in the context of a resource.
+
+An ~action~ consists of a function that takes two parameters, ~data~
+and ~params~, where ~data~ is whatever is required from the resource
+itself to perform an action, and ~params~ is whatever is required
+from the user. Actions also have a name, and a list of symbols that
+describe what ~params~ are required.
+
+In this case, the action is only retrieving data from the database,
+so no ~params~ are required. The definition of the ~view-probe~
+action is:
+
+#+begin_src racket
+(define view-probe
+  (action "view"  ; the name
+          (lambda (data     ;
+                   params)  ; the wrapped function
+            (select-probe (hash-ref data 'dataset)
+                          (hash-ref data 'trait)))
+          '()))   ; the empty params list
+#+end_src
+
+Even though no user-provided parameters are required, the wrapped
+function still needs to take two arguments for now. This action is
+simple, and just extracts the two strings from the ~data~ provided.
+
+Next we need to create an "action set" that contains this action. An
+action set defines the access control structure for a resource type.
+An action set can be viewed as a tree that only branches at the root,
+where each branch is a list of actions, each requiring a higher level
+of access to execute than the last.
+
+In this case, our action set consists only of one branch, and we
+really have only one action. However, to allow for limited access, we
+need a "no access" action that precedes the database query action.
+This action is already defined in ~resource.rkt~ as
+~no-access-action~, and can be used in any action branch without
+modification.
+
+#+begin_src racket
+(define dataset-probe-data
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-probe)))
+
+(define dataset-probe-actions
+  (hasheq 'data dataset-probe-data))
+#+end_src
+
+~dataset-probe-data~ is the branch, ~dataset-probe-actions~ is the
+action set. As can be seen, the action set is simply a structure
+that defines the shape of the access control on a resource type,
+as a sort of dictionary of dictionaries.
+
+With the action set defined, it must be added to the ~resource-types~
+hashmap, so the proxy knows to associate the new resource type with
+this action set. All that's needed is to add ~'dataset-probe
+dataset-probe actions~ to ~resource-types~, and the ~'dataset-probe~
+type is fully defined:
+
+#+begin_src racket
+(define resource-types
+  (hash 'dataset-file dataset-file-actions
+        'dataset-publish dataset-publish-actions
+        'dataset-geno dataset-geno-actions
+        'dataset-probe dataset-probe-actions))
+#+end_src
+
+Finally, it's nice to be able to create resources of this type in Racket,
+so we want a constructor function:
+
+#+begin_src racket
+(define (new-probe-resource name
+                            owner-id
+                            dataset-name
+                            trait-name
+                            default-mask)
+  (resource name
+            owner-id
+            (hasheq 'dataset dataset-name
+                    'trait trait-name)
+            'dataset-probe
+            default-mask
+            (hasheq)))
+#+end_src
+
+
+*** Chromosome queries
+
+Line 305
+#+begin_src python
+
+query = """SELECT chromosome, txStart, txEnd
+        FROM GeneList
+        WHERE geneSymbol = '{}'""".format(self.this_trait.symbol)
+#+end_src
+
+
+Line 324
+#+begin_src python
+
+query = """SELECT kgID, chromosome, txStart, txEnd
+        FROM GeneList_rn33
+        WHERE geneSymbol = '{}'""".format(self.this_trait.symbol)
+#+end_src
+
+*** Geno query
+
+Line 503
+#+begin_src python
+query = """SELECT Geno.Name
+           FROM Geno, GenoXRef, GenoFreeze
+           WHERE Geno.Chr = '{}' AND
+                 GenoXRef.GenoId = Geno.Id AND
+                 GenoFreeze.Id = GenoXRef.GenoFreezeId AND
+                 GenoFreeze.Name = '{}'
+           ORDER BY ABS( Geno.Mb - {}) LIMIT 1""".format(this_chr, this_db.group.name+"Geno", this_mb)
+#+end_src
