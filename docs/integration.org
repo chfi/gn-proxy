@@ -225,3 +225,36 @@ with name "resource1" at Redis ID 0:
 Additionally, users and groups have to exist in Redis. We can
 use the GN2 users already in Redis from GN2, but for completeness'
 sake:
+
+** Using the API
+
+There are two REST endpoints, /available/ and /run-action/.
+
+*** /available/
+
+Takes two parameters, ~resource~ and ~user~. An example query URL
+would look like:
+
+http://localhost:8080/available/?resource=0&user=0
+
+A JSON representation of the actions available to the given user
+on that resource is returned. For instance, if the resource in
+question is one of the above, that either allows or disallows
+access to the ~data~ action, and the user has full access, the
+result would be:
+
+#+begin_src js
+{"data":["no-access","view"]}
+#+end_src
+
+
+*** /run-action/
+
+Takes at least three parameters, ~resource~, ~user~, and ~action~. An
+example query URL would look like:
+
+http://localhost:8080/run-action/?resource=0&user=0&branch=data&action=view
+
+Actions may require additional parameters, which are provided like
+any other URL parameters. What the returned value actually is obviously
+depends on the action in question.
