@@ -58,8 +58,7 @@
                        'owner_id (resource-owner res)
                        'data (resource-data res)
                        'type (symbol->string (resource-type res))
-                       'default_mask (hash-symbol->string
-                                      (resource-default-mask res))
+                       'default_mask (resource-default-mask res)
                        'group_masks (resource-group-masks res))))
 
 (define (deserialize-resource res)
@@ -70,9 +69,15 @@
               (parse 'owner_id)
               (parse 'data)
               (string->symbol (parse 'type))
-              (hash-string->symbol
-               (parse 'default_mask))
+               (parse 'default_mask)
               (parse 'group_masks))))
+
+(define (add-resource id res)
+  (redis-hash-set! (redis-conn)
+                   "resources"
+                   id
+                   (serialize-resource res)))
+
 
 (define (get-resource id)
   (~> (redis-hash-ref (redis-conn) "resources" id)
@@ -265,8 +270,8 @@
   (action "view"
           (lambda (data
                    params)
-            (select-geno (hash-ref data 'dataset)
-                         (hash-ref data 'trait)))
+            (select-publish (hash-ref data 'dataset)
+                            (hash-ref data 'trait)))
           '()))
 
 (define dataset-publish-data
@@ -366,6 +371,47 @@
 (define dataset-probe-actions
   (hasheq 'data dataset-probe-data))
 
+
+;; Helpers for adding new resources to Redis
+
+(define (add-probe-resource id
+                            name
+                            dataset-name
+                            trait-name)
+  (define mask
+    (hash 'data "view"))
+  (let ((res (new-probe-resource name
+                                 0
+                                 dataset-name
+                                 trait-name
+                                 mask)))
+    (add-resource id res)))
+
+(define (add-publish-resource id
+                            name
+                            dataset-name
+                            trait-name)
+  (define mask
+    (hash 'data "view"))
+  (let ((res (new-publish-resource name
+                                 0
+                                 dataset-name
+                                 trait-name
+                                 mask)))
+    (add-resource id res)))
+
+(define (add-geno-resource id
+                            name
+                            dataset-name
+                            trait-name)
+  (define mask
+    (hash 'data "view"))
+  (let ((res (new-geno-resource name
+                                 0
+                                 dataset-name
+                                 trait-name
+                                 mask)))
+    (add-resource id res)))
 
 ;; The global mapping from resource type to action set.
 (define resource-types

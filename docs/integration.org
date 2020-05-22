@@ -163,7 +163,9 @@ so we want a constructor function:
 #+end_src
 
 
-*** Chromosome queries
+*** Other queries
+
+The chromosome queries are almost, but not quite the same:
 
 Line 305
 #+begin_src python
@@ -182,7 +184,10 @@ query = """SELECT kgID, chromosome, txStart, txEnd
         WHERE geneSymbol = '{}'""".format(self.this_trait.symbol)
 #+end_src
 
-*** Geno query
+The only differences are the presence of the ~kgID~ column in the 2nd
+query, and the table that's being searched.
+
+There's also this geno query, that's very similar to what already exists:
 
 Line 503
 #+begin_src python
@@ -194,3 +199,29 @@ query = """SELECT Geno.Name
                  GenoFreeze.Name = '{}'
            ORDER BY ABS( Geno.Mb - {}) LIMIT 1""".format(this_chr, this_db.group.name+"Geno", this_mb)
 #+end_src
+
+
+Thinking about it, it probably doesn't make sense to have the proxy
+handle these requests, so I won't waste time on them for now.
+
+** Populating Redis
+
+For the proxy to be able to execute actions on these resources, they
+need to have entries in the Redis database. I've added functions
+to ~resource.rkt~ that take the required IDs/names and add them to
+Redis if they don't exist, ~add-probe-resource~, ~add-publish-resource~
+and ~add-geno-resource~.
+
+To add a dataset-publish resource with the dataset ID 1, trait ID 17465,
+with name "resource1" at Redis ID 0:
+
+#+begin_src racket
+(add-publish-resource "0"
+                      "resource1"
+                      "1"
+                      "17465")
+#+end_src
+
+Additionally, users and groups have to exist in Redis. We can
+use the GN2 users already in Redis from GN2, but for completeness'
+sake:
