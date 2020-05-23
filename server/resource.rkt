@@ -151,8 +151,12 @@
                                   user-id))
          (action-set (apply-mask (dict-ref resource-types (resource-type res))
                                 mask)))
+    (let ((action (assoc action-id (hash-ref action-set branch-id))))
+      (if action
+          (cdr action)
+          no-access-action))))
 
-    (cdr (assoc action-id (hash-ref action-set branch-id)))))
+    ;; (cdr (assoc action-id (hash-ref action-set branch-id)))))
 
 ;; The general "no access" action -- may change in the future
 (define no-access-action

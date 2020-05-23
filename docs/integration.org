@@ -1,7 +1,5 @@
 * Integration guide/process
 
-[2020-05-19 Tue]
-
 Here I'll be documenting the process of replacing the SQL queries in
 GN2's show_trait.py, including creating the proxy resource types, and
 populating Redis with resource entries.
@@ -222,9 +220,6 @@ with name "resource1" at Redis ID 0:
                       "17465")
 #+end_src
 
-Additionally, users and groups have to exist in Redis. We can
-use the GN2 users already in Redis from GN2, but for completeness'
-sake:
 
 ** Using the API
 
