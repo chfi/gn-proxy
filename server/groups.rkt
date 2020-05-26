@@ -35,7 +35,7 @@
 (define (add-user dbc id name)
   (redis-hash-set! dbc
                    "users"
-                   (number->string id)
+                   id
                    (jsexpr->bytes (hash 'user_name name))))
 
 ; A group is a product of two sets of users, admins and members. A
@@ -59,13 +59,13 @@
   (deserialize-group id
                      (redis-hash-ref dbc
                                      "groups"
-                                     (number->string id))))
+                                     id)))
 
 ;; NB: like add-user, for testing in the REPL
 (define (add-group dbc id admins members)
   (redis-hash-set! dbc
                    "groups"
-                   (number->string id)
+                   id
                    (jsexpr->bytes
                     (hash 'admins (set->list admins)
                           'members (set->list members)))))

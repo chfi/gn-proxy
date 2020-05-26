@@ -36,9 +36,7 @@
        (let* ((res (get-resource res-id))
               (mask (get-mask-for-user
                      res
-                     (~> user-id
-                         (bytes->string/utf-8)
-                         (string->number)))))
+                     (bytes->string/utf-8 user-id))))
          (~> (apply-mask (dict-ref resource-types
                                    (resource-type res))
                          mask)
@@ -79,9 +77,7 @@
                           (string->symbol)))
               (action (bytes->string/utf-8 action)))
          (let ((action (access-action res
-                                      (~> user-id
-                                          (bytes->string/utf-8)
-                                          (string->number))
+                                      (bytes->string/utf-8 user-id)
                                       (cons branch action))))
            (if action
                (run-action action
