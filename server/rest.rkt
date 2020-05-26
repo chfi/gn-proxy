@@ -68,6 +68,22 @@
       [(list #f #f #f #f)
        "provide resource id, user id, and action to perform"]
       [(list (binding:form _ res-id)
+             #f
+             (binding:form _ branch)
+             (binding:form _ action))
+             (let* ((res (get-resource res-id))
+              (branch (~> branch
+                          (bytes->string/utf-8)
+                          (string->symbol)))
+              (action (bytes->string/utf-8 action)))
+         (let ((action (access-action res
+                                      (cons branch action))))
+           (if action
+               (run-action action
+                           (resource-data res)
+                           (action-params action binds))
+               "no access")))]
+      [(list (binding:form _ res-id)
              (binding:form _ user-id)
              (binding:form _ branch)
              (binding:form _ action))
@@ -77,8 +93,8 @@
                           (string->symbol)))
               (action (bytes->string/utf-8 action)))
          (let ((action (access-action res
-                                      (bytes->string/utf-8 user-id)
-                                      (cons branch action))))
+                                      (cons branch action)
+                                      #:user (bytes->string/utf-8 user-id))))
            (if action
                (run-action action
                            (resource-data res)
@@ -91,7 +107,7 @@
 (define (run-action-dispatcher conn req)
   (output-response conn (run-action-endpoint req)))
 
-;; Run the server (will be moved to another module later)
+;; Run the server
 (define stop
   (serve
    #:dispatch (sequencer:make
@@ -99,7 +115,6 @@
                             query-available-dispatcher)
                (filter:make #rx"^/run-action/"
                             run-action-dispatcher))
-   ;; #:dispatch (dispatch/servlet run-action-endpoint)
    #:listen-ip "127.0.0.1"
    #:port 8080))
 

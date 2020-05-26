@@ -144,13 +144,18 @@
 ;; Return the action, as defined by a pair of a branch name and action
 ;; name, for a given resource, as accessible by the given user.
 ;; Returns #f if the user does not have access.
-(define (access-action res user-id action-pair)
+(define (access-action res
+                       action-pair
+                       #:user [user-id 'anonymous])
   (let* ((branch-id (car action-pair))
          (action-id (cdr action-pair))
-         (mask (get-mask-for-user res
-                                  user-id))
-         (action-set (apply-mask (dict-ref resource-types (resource-type res))
-                                mask)))
+         (mask (if (eq? user-id 'anonymous)
+                   (resource-default-mask res)
+                   (get-mask-for-user res
+                                      user-id)))
+         (action-set (apply-mask (dict-ref resource-types
+                                           (resource-type res))
+                                 mask)))
     (let ((action (assoc action-id (hash-ref action-set branch-id))))
       (if action
           (cdr action)

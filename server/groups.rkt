@@ -26,7 +26,7 @@
   (let ((user-hash (bytes->jsexpr
                     (redis-hash-ref dbc "users" id))))
     (user id
-          (dict-ref user-hash 'user_name))))
+          (dict-ref user-hash 'email_address))))
 
 
 ;; Add a user with the given ID and name to the "users" hash in Redis.
@@ -36,7 +36,7 @@
   (redis-hash-set! dbc
                    "users"
                    id
-                   (jsexpr->bytes (hash 'user_name name))))
+                   (jsexpr->bytes (hash 'email_address name))))
 
 ; A group is a product of two sets of users, admins and members. A
 ; user can be either an admin or a member, not both. Logically, for
