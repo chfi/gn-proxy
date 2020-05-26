@@ -1,5 +1,17 @@
 * GN proxy & access control
 
+** Dependencies and starting the proxy
+
+The only dependencies are "redis-rkt" and "threading", as defined in
+info.rkt.
+
+The REST server can be started by running server/rest.rkt:
+
+#+begin_src bash
+racket server/rest.rkt
+#+end_src
+
+
 ** Redis and MariaDB connections
 
 The database connections are defined in db.rkt, and are handled by
