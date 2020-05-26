@@ -116,7 +116,9 @@
                (filter:make #rx"^/run-action/"
                             run-action-dispatcher))
    #:listen-ip "127.0.0.1"
-   #:port 8080))
+   #:port (string->number
+           (or (getenv "PORT")
+               "8080"))))
 
 (with-handlers ([exn:break? (lambda (e)
                               (stop))])

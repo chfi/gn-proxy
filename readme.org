@@ -11,26 +11,15 @@ cd gn-proxy
 raco pkg install
 #+end_src
 
-The REST server can then be started by running server/rest.rkt:
+The REST server can then be started by running server/rest.rkt, while
+providing the SQL username and password as environment variables:
 
 #+begin_src bash
-racket server/rest.rkt
+env SQL_USER=username SQL_PASSWORD=password racket server/rest.rkt
 #+end_src
 
-By default it listens on port 8080 and listens on 127.0.0.1, which
-can be changed in ~server/rest.rkt~:
-
-#+begin_src racket
-(define stop
-  (serve
-   #:dispatch (sequencer:make
-               (filter:make #rx"^/available/"
-                            query-available-dispatcher)
-               (filter:make #rx"^/run-action/"
-                            run-action-dispatcher))
-   #:listen-ip "127.0.0.1"
-   #:port 8080))
-#+end_src
+By default it listens on port 8080 and listens on 127.0.0.1, however
+the port can be changed with the PORT environment variable.
 
 The Redis and MariaDB connections are handled in ~server/db.rkt~, and
 can be configured by editing ~connect-redis~ and ~connect-sql~. See the
