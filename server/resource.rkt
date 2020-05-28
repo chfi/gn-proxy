@@ -300,8 +300,7 @@
                            default-mask)
   (resource name
             owner-id
-            (hasheq 'dataset dataset-name
-                    'trait trait-name)
+            (hasheq 'dataset dataset-name)
             'dataset-geno
             default-mask
             (hasheq)))
@@ -323,8 +322,8 @@
           (lambda (data
                    params)
             (select-geno (hash-ref data 'dataset)
-                         (hash-ref data 'trait)))
-          '()))
+                         (dict-ref params 'trait)))
+          '(trait)))
 
 (define dataset-geno-data
   (list (cons "no-access" no-access-action)
