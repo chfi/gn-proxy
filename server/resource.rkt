@@ -92,7 +92,7 @@
 (define (get-mask-for-user resource user-id)
   (let ([group-masks (resource-group-masks resource)]
         [groups (get-groups-by-member (redis-conn) user-id)]
-        [initial-mask (if (eq? (resource-owner resource) user-id)
+        [initial-mask (if (string=? (resource-owner resource) user-id)
                           (maximum-access-mask
                            (dict-ref resource-types
                                      (resource-type resource)))
