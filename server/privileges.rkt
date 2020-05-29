@@ -1,6 +1,7 @@
 #lang racket
 
 (provide (struct-out action)
+         action-set->hash
          minimum-access-mask
          maximum-access-mask
          run-action
@@ -39,6 +40,15 @@
   (and (hash? actions)
        (for/and ([(k v) (in-hash actions)])
          (and (dict? v) (list? v)))))
+
+
+;; It's useful to be able to partially represent an action set as
+;; a tree, to show exactly what actions are available, in general,
+;; on a resource type
+(define (action-set->hash actions)
+  (for/hash ([(k v) (in-hash actions)])
+    (values k (map car v))))
+
 
 ;; A mask is a map from action branches to action IDs. In a sense
 ;; it is a subset of the action set; though it doesn't actually

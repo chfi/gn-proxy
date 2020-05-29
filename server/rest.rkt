@@ -20,12 +20,32 @@
 
 ;;;; Endpoints
 
+;; Get a JSON representation of the action set for a resource type,
+;; can be useful when resource types start changing so we know what
+;; the proxy expects the masks in a redis resource to look like
+(define (get-action-set-endpoint req)
+  (define binds (request-bindings/raw req))
+  (define message
+    (match (list (bindings-assq #"resource-type" binds))
+      [(list #f)
+       "Provide a resource type"]
+      [(list (binding:form _ res-type))
+       (let ((type (dict-ref resource-types
+                             (~> res-type
+                                 (bytes->string/utf-8)
+                                 (string->symbol)))))
+         (jsexpr->bytes (action-set->hash type)))]))
+  (response/output
+   (lambda (out)
+     (displayln message out))))
+
+(define (get-action-set-dispatcher conn req)
+  (output-response conn (get-action-set-endpoint req)))
+
+
 ;; Query available actions for a resource, for a given user
 (define (query-available-endpoint req)
   (define binds (request-bindings/raw req))
-  (define (masked-actions actions)
-    (for/hash ([(k v) (in-hash actions)])
-      (values k (map car v))))
   (define message
     (match (list (bindings-assq #"resource" binds)
                  (bindings-assq #"user" binds))
@@ -40,7 +60,7 @@
          (~> (apply-mask (dict-ref resource-types
                                    (resource-type res))
                          mask)
-             (masked-actions)
+             (action-set->hash)
              (jsexpr->bytes)))]))
   (response/output
    (lambda (out)
@@ -114,7 +134,9 @@
                (filter:make #rx"^/available/"
                             query-available-dispatcher)
                (filter:make #rx"^/run-action/"
-                            run-action-dispatcher))
+                            run-action-dispatcher)
+               (filter:make #rx"^/get-action-set/"
+                            get-action-set-dispatcher))
    #:listen-ip "127.0.0.1"
    #:port (string->number
            (or (getenv "PORT")
