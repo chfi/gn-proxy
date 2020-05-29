@@ -10,6 +10,7 @@
          web-server/http/bindings
          web-server/servlet-dispatch
          web-server/web-server
+         web-server/dispatch
          (prefix-in filter: web-server/dispatchers/dispatch-filter)
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
          "db.rkt"
@@ -39,9 +40,6 @@
    (lambda (out)
      (displayln message out))))
 
-(define (get-action-set-dispatcher conn req)
-  (output-response conn (get-action-set-endpoint req)))
-
 
 ;; Query available actions for a resource, for a given user
 (define (query-available-endpoint req)
@@ -66,8 +64,6 @@
    (lambda (out)
      (displayln message out))))
 
-(define (query-available-dispatcher conn req)
-  (output-response conn (query-available-endpoint req)))
 
 (define (action-params action binds)
   (for/hash ([k (action-req-params action)])
@@ -124,19 +120,18 @@
    (lambda (out)
      (displayln message out))))
 
-(define (run-action-dispatcher conn req)
-  (output-response conn (run-action-endpoint req)))
+
+(define-values (app reverse-uri)
+  (dispatch-rules
+   [("available") query-available-endpoint]
+   [("run-action") run-action-endpoint]
+   [("get-action-set") get-action-set-endpoint]))
 
 ;; Run the server
 (define stop
   (serve
    #:dispatch (sequencer:make
-               (filter:make #rx"^/available/"
-                            query-available-dispatcher)
-               (filter:make #rx"^/run-action/"
-                            run-action-dispatcher)
-               (filter:make #rx"^/get-action-set/"
-                            get-action-set-dispatcher))
+               (dispatch/servlet app))
    #:listen-ip "127.0.0.1"
    #:port (string->number
            (or (getenv "PORT")
