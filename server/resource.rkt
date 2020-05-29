@@ -257,7 +257,7 @@
                "SELECT
                       PublishXRef.Id, InbredSet.InbredSetCode, Publication.PubMed_ID,
                       Phenotype.Pre_publication_description, Phenotype.Post_publication_description, Phenotype.Original_description,
-                      Phenotype.Pre_publication_abbreviation, Phenotype.Post_publication_abbreviation,
+                      Phenotype.Pre_publication_abbreviation, Phenotype.Post_publication_abbreviation, PublishXRef.mean,
                       Phenotype.Lab_code, Phenotype.Submitter, Phenotype.Owner, Phenotype.Authorized_Users,
                       Publication.Authors, Publication.Title, Publication.Abstract,
                       Publication.Journal, Publication.Volume, Publication.Pages,
@@ -296,7 +296,6 @@
 (define (new-geno-resource name
                            owner-id
                            dataset-name
-                           trait-name
                            default-mask)
   (resource name
             owner-id
@@ -308,11 +307,11 @@
 (define (select-geno dataset-name trait-name)
   (sql-result->json
     (query-row (mysql-conn)
-               "SELECT Geno.name, Geno.chr, Geno.mb, Geno.source2, Geno.sequence
+               "SELECT Geno.Name, Geno.Chr, Geno.Mb, Geno.Source2, Geno.Sequence
                 FROM Geno, GenoFreeze, GenoXRef
                 WHERE GenoXRef.GenoFreezeId = GenoFreeze.Id AND
                       GenoXRef.GenoId = Geno.Id AND
-                      GenoFreeze.Name = ? AND
+                      GenoFreeze.Id = ? AND
                       Geno.Name = ?"
                 dataset-name
                 trait-name)))
@@ -332,7 +331,53 @@
 (define dataset-geno-actions
   (hasheq 'data dataset-geno-data))
 
+;; The dataset-probeset resource type
+;; Currently only read actions
 
+(define (new-probeset-resource name
+                               owner-id
+                               dataset-name
+                               default-mask)
+  (resource name
+            owner-id
+            (hasheq 'dataset dataset-name)
+            'dataset-probeset
+            default-mask
+            (hasheq)))
+
+(define (select-probeset dataset-name trait-name)
+  (sql-result->json
+    (query-row (mysql-conn)
+                "SELECT ProbeSet.Name, ProbeSet.Symbol, ProbeSet.description, ProbeSet.Probe_Target_Description,
+                        ProbeSet.Chr, ProbeSet.Mb, ProbeSet.alias, ProbeSet.GeneId, ProbeSet.GenbankId, ProbeSet.UniGeneId,
+                        ProbeSet.OMIM, ProbeSet.RefSeq_TranscriptId, ProbeSet.BlatSeq, ProbeSet.TargetSeq, ProbeSet.ChipId,
+                        ProbeSet.comments, ProbeSet.Strand_Probe, ProbeSet.Strand_Gene, ProbeSet.ProteinID, ProbeSet.UniProtID,
+                        ProbeSet.Probe_set_target_region, ProbeSet.Probe_set_specificity, ProbeSet.Probe_set_BLAT_score,
+                        ProbeSet.Probe_set_Blat_Mb_start, ProbeSet.Probe_set_Blat_Mb_end, ProbeSet.Probe_set_strand,
+                        ProbeSet.Probe_set_Note_by_RW, ProbeSet.flag
+                FROM ProbeSet, ProbeSetFreeze, ProbeSetXRef
+                WHERE
+                        ProbeSetXRef.ProbeSetFreezeId = ProbeSetFreeze.Id AND
+                        ProbeSetXRef.ProbeSetId = ProbeSet.Id AND
+                        ProbeSetFreeze.Id = ? AND
+                        ProbeSet.Name = ?"
+                dataset-name
+                trait-name)))
+
+(define view-probeset
+  (action "view"
+          (lambda (data
+                   params)
+            (select-probeset (hash-ref data 'dataset)
+                          (dict-ref params 'trait)))
+          '(trait)))
+
+(define dataset-probeset-data
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-probeset)))
+
+(define dataset-probeset-actions
+  (hasheq 'data dataset-probeset-data))
 
 ;; The dataset-probe resource type
 ;; Currently only read actions
@@ -395,30 +440,39 @@
                                  mask)))
     (add-resource id res)))
 
+(define (add-probeset-resource id
+                               name
+                               dataset-name)
+  (define mask
+    (hash 'data "view"))
+  (let ((res (new-probeset-resource name
+                                    0
+                                    dataset-name
+                                    mask)))
+    (add-resource id res)))
+
 (define (add-publish-resource id
-                            name
-                            dataset-name
-                            trait-name)
+                              name
+                              dataset-name
+                              trait-name)
   (define mask
     (hash 'data "view"))
   (let ((res (new-publish-resource name
-                                 0
-                                 dataset-name
-                                 trait-name
-                                 mask)))
+                                   0
+                                   dataset-name
+                                   trait-name
+                                   mask)))
     (add-resource id res)))
 
 (define (add-geno-resource id
-                            name
-                            dataset-name
-                            trait-name)
+                           name
+                           dataset-name)
   (define mask
     (hash 'data "view"))
   (let ((res (new-geno-resource name
-                                 0
-                                 dataset-name
-                                 trait-name
-                                 mask)))
+                                0
+                                dataset-name
+                                mask)))
     (add-resource id res)))
 
 ;; The global mapping from resource type to action set.
@@ -426,10 +480,12 @@
   (hash 'dataset-file dataset-file-actions
         'dataset-publish dataset-publish-actions
         'dataset-geno dataset-geno-actions
+        'dataset-probeset dataset-probeset-actions
         'dataset-probe dataset-probe-actions))
     ;; future resource types, for reference (c.f. genenetwork datasets etc.)
     ;; dataset-publish
     ;; dataset-probeset
+    ;; dataset-probe
     ;; dataset-geno
     ;; dataset-temp
     ;; collection
