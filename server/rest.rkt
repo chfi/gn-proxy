@@ -19,6 +19,42 @@
          "resource.rkt")
 
 
+;;;; Endpoint exception handlers
+
+(struct
+  proxy:param-error
+  (expected-params))
+
+;; For now the handler will just return a JSON list of the expected parameters
+(define (response-param-error err)
+  (let ((expected (proxy:param-error-expected-params err)))
+    (jsexpr->bytes expected)))
+
+(define (testing-endpoint req)
+  (define binds (request-bindings/raw req))
+  (define expected
+    (proxy:param-error
+     (list "resource" "user" "branch" "action")))
+  (define message
+    (let ((binds* (list (bindings-assq #"resource" binds)
+                        (bindings-assq #"user" binds)
+                        (bindings-assq #"branch" binds)
+                        (bindings-assq #"action" binds))))
+      (with-handlers ([proxy:param-error?
+                       response-param-error])
+        (if (ormap false? binds*)
+            (raise expected)
+            (match binds*
+              [(list (binding:form _ res-id)
+                     (binding:form _ user-id)
+                     (binding:form _ branch)
+                     (binding:form _ action))
+               "this works"])))))
+  (response/output
+   (lambda (out)
+     (displayln message out))))
+
+
 ;;;; Endpoints
 
 ;; Get a JSON representation of the action set for a resource type,
@@ -121,11 +157,13 @@
      (displayln message out))))
 
 
+
 (define-values (app reverse-uri)
   (dispatch-rules
    [("available") query-available-endpoint]
    [("run-action") run-action-endpoint]
-   [("get-action-set") get-action-set-endpoint]))
+   [("get-action-set") get-action-set-endpoint]
+   [("testing") testing-endpoint]))
 
 ;; Run the server
 (define stop
