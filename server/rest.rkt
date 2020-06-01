@@ -29,16 +29,19 @@
                 ", "
                 #:before-first "Expected parameters: ")))
 
+(define (extract-expected binds expected)
+  (if (not (andmap (curryr exists-binding? binds) expected))
+      (response-param-error expected)
+      (for/hash ([x (in-list binds)])
+        (values (car x) (cdr x)))))
+
 (define (testing-endpoint req)
   (define binds (request-bindings req))
   (define expected
     (list 'resource 'user 'branch 'action))
   (define message
-    (if (not (andmap (curryr exists-binding? binds) expected))
-        (response-param-error expected)
-        (let ((binds* (for/hash ([x (in-list binds)])
-                        (values (car x) (cdr x)))))
-          (jsexpr->bytes binds*))))
+    (let ((binds* (extract-expected binds expected)))
+      (jsexpr->bytes binds*)))
   (response/output
    (lambda (out)
      (displayln message out))))
@@ -53,15 +56,12 @@
   (define binds (request-bindings req))
   (define expected (list 'resource-type))
   (define message
-    (if (not (andmap (curryr exists-binding? binds) expected))
-        (response-param-error expected)
-        (let* ((binds* (for/hash ([x (in-list binds)])
-                         (values (car x) (cdr x))))
-               (res-type (hash-ref binds* 'resource-type)))
-          (jsexpr->bytes
+    (let* ((binds* (extract-expected binds expected))
+           (res-type (hash-ref binds* 'resource-type)))
+      (jsexpr->bytes
            (action-set->hash
             (dict-ref resource-types
-                      (string->symbol res-type)))))))
+                      (string->symbol res-type))))))
   (response/output
    (lambda (out)
      (displayln message out))))
@@ -72,18 +72,15 @@
   (define binds (request-bindings req))
   (define expected (list 'resource 'user))
   (define message
-    (if (not (andmap (curryr exists-binding? binds) expected))
-        (response-param-error expected)
-        (let* ((binds* (for/hash ([x (in-list binds)])
-                         (values (car x) (cdr x))))
-               (res (get-resource (hash-ref binds* 'resource)))
-               (mask (get-mask-for-user res
-                                        (hash-ref binds* 'user))))
-          (~> (apply-mask (dict-ref resource-types
-                                    (resource-type res))
-                          mask)
-              (action-set->hash)
-              (jsexpr->bytes)))))
+    (let* ((binds* (extract-expected binds expected))
+           (res (get-resource (hash-ref binds* 'resource)))
+           (mask (get-mask-for-user res
+                                    (hash-ref binds* 'user))))
+      (~> (apply-mask (dict-ref resource-types
+                                (resource-type res))
+                      mask)
+          (action-set->hash)
+          (jsexpr->bytes))))
   (response/output
    (lambda (out)
      (displayln message out))))
