@@ -88,52 +88,29 @@
 
 (define (action-params action binds)
   (for/hash ([k (action-req-params action)])
-    (values k
-            (~> k
-                (symbol->string)
-                (string->bytes/utf-8)
-                (bindings-assq _ binds)
-                (binding:form-value)))))
+    (values k (dict-ref binds k))))
 
 (define (run-action-endpoint req)
-  (define binds (request-bindings/raw req))
-  (define raise-expected
-    (response-param-error
-     (list "resource" "branch" "action")))
+  (define binds (request-bindings req))
+  (define expected
+    (list 'resource 'branch 'action))
   (define message
-    (match (list (bindings-assq #"resource" binds)
-                 (bindings-assq #"user" binds)
-                 (bindings-assq #"branch" binds)
-                 (bindings-assq #"action" binds))
-      [(list #f _ #f #f)
-       (raise-expected)]
-      [(list (binding:form _ res-id)
-             bind-user-id
-             (binding:form _ branch)
-             (binding:form _ action))
-       (let* ((res (get-resource res-id))
-              (branch (~> branch
-                          (bytes->string/utf-8)
-                          (string->symbol)))
-              (action (bytes->string/utf-8 action)))
-         (let ((action (if bind-user-id
-                           (access-action
-                            res
-                            (cons branch action)
-                            #:user (bytes->string/utf-8
-                                    (binding:form-value bind-user-id)))
-                           (access-action
-                            res
-                            (cons branch action)))))
-           (if action
-               (run-action action
-                           (resource-data res)
-                           (action-params action binds))
-               "no access")))]))
+    (let* ((binds* (extract-expected binds expected))
+           (res (get-resource (hash-ref binds* 'resource)))
+           (branch (string->symbol (hash-ref binds* 'branch)))
+           (action (hash-ref binds* 'action))
+           (user (hash-ref binds* 'user #f)))
+      (let ((action (access-action res
+                     (cons branch action)
+                     #:user user)))
+        (if action
+            (run-action action
+                        (resource-data res)
+                        (action-params action binds))
+            "no access"))))
   (response/output
    (lambda (out)
      (displayln message out))))
-
 
 
 (define-values (app reverse-uri)
@@ -143,7 +120,6 @@
    [("get-action-set") get-action-set-endpoint]
    [("testing") testing-endpoint]))
 
-
 ;; Servlet responder for error handling
 (define (internal-server-error url ex)
   (log-error "~a ~~~~> ~a"
@@ -152,7 +128,6 @@
   (response/output
    (lambda (out)
      (displayln (exn-message ex) out))
-
    #:code 500
    #:mime-type #"application/json; charset=utf-8"))
 
