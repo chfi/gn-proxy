@@ -50,20 +50,18 @@
 ;; can be useful when resource types start changing so we know what
 ;; the proxy expects the masks in a redis resource to look like
 (define (get-action-set-endpoint req)
-  (define binds (request-bindings/raw req))
-  (define raise-expected
-    (response-param-error
-     (list "resource-type")))
+  (define binds (request-bindings req))
+  (define expected (list 'resource-type))
   (define message
-    (match (list (bindings-assq #"resource-type" binds))
-      [(list #f)
-       (raise-expected)]
-      [(list (binding:form _ res-type))
-       (let ((type (dict-ref resource-types
-                             (~> res-type
-                                 (bytes->string/utf-8)
-                                 (string->symbol)))))
-         (jsexpr->bytes (action-set->hash type)))]))
+    (if (not (andmap (curryr exists-binding? binds) expected))
+        (response-param-error expected)
+        (let* ((binds* (for/hash ([x (in-list binds)])
+                         (values (car x) (cdr x))))
+               (res-type (hash-ref binds* 'resource-type)))
+          (jsexpr->bytes
+           (action-set->hash
+            (dict-ref resource-types
+                      (string->symbol res-type)))))))
   (response/output
    (lambda (out)
      (displayln message out))))
@@ -71,27 +69,21 @@
 
 ;; Query available actions for a resource, for a given user
 (define (query-available-endpoint req)
-  (define binds (request-bindings/raw req))
-  (define raise-expected
-    (response-param-error
-     (list "resource" "user")))
+  (define binds (request-bindings req))
+  (define expected (list 'resource 'user))
   (define message
-    (let ((binds* (list (bindings-assq #"resource" binds)
-                        (bindings-assq #"user" binds))))
-      (if (ormap false? binds*)
-          (raise-expected)
-          (match binds*
-            [(list (binding:form _ res-id)
-                   (binding:form _ user-id))
-             (let* ((res (get-resource res-id))
-                    (mask (get-mask-for-user
-                           res
-                           (bytes->string/utf-8 user-id))))
-               (~> (apply-mask (dict-ref resource-types
-                                         (resource-type res))
-                               mask)
-                   (action-set->hash)
-                   (jsexpr->bytes)))]))))
+    (if (not (andmap (curryr exists-binding? binds) expected))
+        (response-param-error expected)
+        (let* ((binds* (for/hash ([x (in-list binds)])
+                         (values (car x) (cdr x))))
+               (res (get-resource (hash-ref binds* 'resource)))
+               (mask (get-mask-for-user res
+                                        (hash-ref binds* 'user))))
+          (~> (apply-mask (dict-ref resource-types
+                                    (resource-type res))
+                          mask)
+              (action-set->hash)
+              (jsexpr->bytes)))))
   (response/output
    (lambda (out)
      (displayln message out))))
