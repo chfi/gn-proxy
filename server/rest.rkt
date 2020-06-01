@@ -3,6 +3,7 @@
 (require db
          redis
          json
+         net/url
          threading
          racket/match
          web-server/http
@@ -11,6 +12,7 @@
          web-server/servlet-dispatch
          web-server/web-server
          web-server/dispatch
+         web-server/http/response-structs
          (prefix-in filter: web-server/dispatchers/dispatch-filter)
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
          "db.rkt"
@@ -160,11 +162,25 @@
    [("get-action-set") get-action-set-endpoint]
    [("testing") testing-endpoint]))
 
+
+;; Servlet responder for error handling
+(define (internal-server-error url ex)
+  (log-error "~a ~~~~> ~a"
+             (url->string url)
+             (exn-message ex))
+  (response/output
+   (lambda (out)
+     (displayln (exn-message ex) out))
+
+   #:code 500
+   #:mime-type #"application/json; charset=utf-8"))
+
 ;; Run the server
 (define stop
   (serve
    #:dispatch (sequencer:make
-               (dispatch/servlet app))
+               (dispatch/servlet app
+                                 #:responders-servlet internal-server-error))
    #:listen-ip "127.0.0.1"
    #:port (string->number
            (or (getenv "PORT")
