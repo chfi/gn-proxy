@@ -19,40 +19,32 @@
          "resource.rkt")
 
 
-;;;; Endpoint exception handlers
+;;;; Endpoint exceptions
 
-(struct
-  proxy:param-error
-  (expected-params))
-
-;; For now the handler will just return a JSON list of the expected parameters
-(define (response-param-error err)
-  (let ((expected (proxy:param-error-expected-params err)))
-    (response/output
-     (lambda (out)
-
-       (displayln (jsexpr->bytes expected) out)))))
+(define (response-param-error params)
+  (error
+   (string-join params
+                ", "
+                #:before-first "Expected parameters: ")))
 
 (define (testing-endpoint req)
   (define binds (request-bindings/raw req))
-  (define expected
-    (proxy:param-error
+  (define raise-expected
+    (response-param-error
      (list "resource" "user" "branch" "action")))
   (define message
     (let ((binds* (list (bindings-assq #"resource" binds)
                         (bindings-assq #"user" binds)
                         (bindings-assq #"branch" binds)
                         (bindings-assq #"action" binds))))
-      (with-handlers ([proxy:param-error?
-                       response-param-error])
         (if (ormap false? binds*)
-            (raise expected)
+            (raise-expected)
             (match binds*
               [(list (binding:form _ res-id)
                      (binding:form _ user-id)
                      (binding:form _ branch)
                      (binding:form _ action))
-               "this works"])))))
+               "this works"]))))
   (response/output
    (lambda (out)
      (displayln message out))))
@@ -65,21 +57,19 @@
 ;; the proxy expects the masks in a redis resource to look like
 (define (get-action-set-endpoint req)
   (define binds (request-bindings/raw req))
-  (define expected
-    (proxy:param-error
+  (define raise-expected
+    (response-param-error
      (list "resource-type")))
   (define message
-    (with-handlers ([proxy:param-error?
-                     response-param-error])
-      (match (list (bindings-assq #"resource-type" binds))
-        [(list #f)
-         (raise expected)]
+    (match (list (bindings-assq #"resource-type" binds))
+      [(list #f)
+       (raise-expected)]
       [(list (binding:form _ res-type))
        (let ((type (dict-ref resource-types
                              (~> res-type
                                  (bytes->string/utf-8)
                                  (string->symbol)))))
-         (jsexpr->bytes (action-set->hash type)))])))
+         (jsexpr->bytes (action-set->hash type)))]))
   (response/output
    (lambda (out)
      (displayln message out))))
@@ -88,28 +78,26 @@
 ;; Query available actions for a resource, for a given user
 (define (query-available-endpoint req)
   (define binds (request-bindings/raw req))
-  (define expected
-    (proxy:param-error
+  (define raise-expected
+    (response-param-error
      (list "resource" "user")))
   (define message
     (let ((binds* (list (bindings-assq #"resource" binds)
                         (bindings-assq #"user" binds))))
-    (with-handlers ([proxy:param-error?
-                     response-param-error])
-        (if (ormap false? binds*)
-            (raise expected)
-            (match binds*
-              [(list (binding:form _ res-id)
-                     (binding:form _ user-id))
-               (let* ((res (get-resource res-id))
-                      (mask (get-mask-for-user
-                             res
-                             (bytes->string/utf-8 user-id))))
-                 (~> (apply-mask (dict-ref resource-types
-                                           (resource-type res))
-                                 mask)
-                     (action-set->hash)
-                     (jsexpr->bytes)))])))))
+      (if (ormap false? binds*)
+          (raise-expected)
+          (match binds*
+            [(list (binding:form _ res-id)
+                   (binding:form _ user-id))
+             (let* ((res (get-resource res-id))
+                    (mask (get-mask-for-user
+                           res
+                           (bytes->string/utf-8 user-id))))
+               (~> (apply-mask (dict-ref resource-types
+                                         (resource-type res))
+                               mask)
+                   (action-set->hash)
+                   (jsexpr->bytes)))]))))
   (response/output
    (lambda (out)
      (displayln message out))))
@@ -126,16 +114,16 @@
 
 (define (run-action-endpoint req)
   (define binds (request-bindings/raw req))
-  (define expected
-    (proxy:param-error
+  (define raise-expected
+    (response-param-error
      (list "resource" "branch" "action")))
   (define message
     (match (list (bindings-assq #"resource" binds)
                  (bindings-assq #"user" binds)
                  (bindings-assq #"branch" binds)
                  (bindings-assq #"action" binds))
-      [(list #f #f #f #f)
-       "provide resource id, user id, and action to perform"]
+      [(list #f _ #f #f)
+       (raise-expected)]
       [(list (binding:form _ res-id)
              bind-user-id
              (binding:form _ branch)
@@ -176,11 +164,7 @@
 (define stop
   (serve
    #:dispatch (sequencer:make
-               (dispatch/servlet
-
-      (with-handlers ([proxy:param-error?
-                       response-param-error])
-                    app)))
+               (dispatch/servlet app))
    #:listen-ip "127.0.0.1"
    #:port (string->number
            (or (getenv "PORT")
