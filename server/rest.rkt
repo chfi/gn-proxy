@@ -25,28 +25,20 @@
 
 (define (response-param-error params)
   (error
-   (string-join params
+   (string-join (map symbol->string params)
                 ", "
                 #:before-first "Expected parameters: ")))
 
 (define (testing-endpoint req)
-  (define binds (request-bindings/raw req))
-  (define raise-expected
-    (response-param-error
-     (list "resource" "user" "branch" "action")))
+  (define binds (request-bindings req))
+  (define expected
+    (list 'resource 'user 'branch 'action))
   (define message
-    (let ((binds* (list (bindings-assq #"resource" binds)
-                        (bindings-assq #"user" binds)
-                        (bindings-assq #"branch" binds)
-                        (bindings-assq #"action" binds))))
-        (if (ormap false? binds*)
-            (raise-expected)
-            (match binds*
-              [(list (binding:form _ res-id)
-                     (binding:form _ user-id)
-                     (binding:form _ branch)
-                     (binding:form _ action))
-               "this works"]))))
+    (if (not (andmap (curryr exists-binding? binds) expected))
+        (response-param-error expected)
+        (let ((binds* (for/hash ([x (in-list binds)])
+                        (values (car x) (cdr x)))))
+          (jsexpr->bytes binds*))))
   (response/output
    (lambda (out)
      (displayln message out))))
