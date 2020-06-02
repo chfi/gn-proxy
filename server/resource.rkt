@@ -85,9 +85,13 @@
 
 
 (define (get-resource id)
-  (~> (redis-hash-ref (redis-conn) "resources" id)
-      (deserialize-resource)))
-
+  (let ((res (redis-hash-ref (redis-conn)
+                             "resources"
+                             id)))
+    (if (false? res)
+        (error (format "Resource not found in Redis: ~a"
+                       id))
+        (deserialize-resource res))))
 
 ;; Given a resource and a user ID, derive the access mask for that user
 ;; based on their group membership as stored in Redis, and return

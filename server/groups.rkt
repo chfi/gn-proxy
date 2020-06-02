@@ -23,10 +23,12 @@
 ;; Retrieve the given user by ID from Redis; deserializes from JSON
 ;; TODO update this when we update the user struct
 (define (get-user dbc id)
-  (let ((user-hash (bytes->jsexpr
-                    (redis-hash-ref dbc "users" id))))
-    (user id
-          (dict-ref user-hash 'email_address))))
+  (let ((user-hash  (redis-hash-ref dbc "users" id)))
+    (if (false? user-hash)
+        (error (format "User not found in Redis: ~a"
+                       id))
+        (user id
+              (dict-ref user-hash 'email_address)))))
 
 
 ;; Add a user with the given ID and name to the "users" hash in Redis.
@@ -56,10 +58,14 @@
 
 ;; Retrieve the given group by ID from Redis
 (define (get-group dbc id)
-  (deserialize-group id
-                     (redis-hash-ref dbc
-                                     "groups"
-                                     id)))
+  (let ((grp (redis-hash-ref dbc
+                             "groups"
+                             id)))
+    (if (false? grp)
+        (error (format "Group not found in Redis: ~a"
+                       id))
+        (deserialize-group id grp))))
+
 
 ;; NB: like add-user, for testing in the REPL
 (define (add-group dbc id admins members)
