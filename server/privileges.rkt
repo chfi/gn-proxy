@@ -118,23 +118,44 @@
   (test-case
       "Every branch in the action set is represented by the mask"
     (let ((mask-missing-branch (hasheq 'a "a1")))
-      (check-equal? #t
-                    (is-mask-for? action-set
-                                  correct-mask))
-      (check-equal? #f
-                    (is-mask-for? action-set
-                                  mask-missing-branch))))
+      (check-true (is-mask-for? action-set
+                                correct-mask))
+      (check-false (is-mask-for? action-set
+                                 mask-missing-branch))))
   (test-case
       "Masks with additional branches are incorrect"
     (let ((mask-extra-branch (hash-set correct-mask
                                        'c "c1")))
-      (check-equal? #f
-                    (is-mask-for? action-set
-                                  mask-extra-branch))))
+      (check-false (is-mask-for? action-set
+                                 mask-extra-branch))))
   (test-case
       "Masks with a branch that has an action not in the set are incorrect"
     (let ((mask-wrong-action (hash-set correct-mask
                                        'a "a3")))
-      (check-equal? #f
-                    (is-mask-for? action-set
-                                  mask-wrong-action)))))
+      (check-false (is-mask-for? action-set
+                                 mask-wrong-action))))
+
+  ;; minimum/maximum-access-mask
+  (test-case
+      "Minimum/maximum access masks are masks for the action set"
+    (let ((min-mask (minimum-access-mask action-set))
+          (max-mask (maximum-access-mask action-set)))
+      (check-true (is-mask-for? action-set min-mask))
+      (check-true (is-mask-for? action-set max-mask))))
+
+  ;; mask-join
+  (test-case
+      "The join of a number of masks for an action set is a mask for
+that action set, and is the union of the access levels"
+    (let ((action-set (hash-set action-set
+                                'c
+                                (list (cons "c1" 'c1)
+                                      (cons "c2" 'c2))))
+          (mask1 (hash-set correct-mask
+                           'c "c1"))
+          (mask2 (hash-set correct-mask
+                           'c "c2")))
+      (let ((joined (mask-join action-set mask1 mask2)))
+        (check-true (is-mask-for? action-set joined))
+        (check-equal? "c2"
+                      (hash-ref joined 'c))))))
