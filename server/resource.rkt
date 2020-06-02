@@ -39,24 +39,6 @@
   #:transparent)
 
 
-;; The Racket JSON library can only transform hashes that have
-;; symbol keys -- but Redis only deals with strings and bytestrings.
-;; These functions transform the keys of a hash between the two.
-
-(define (hash-symbol->string h)
-  (for/hash ([(k v) (in-hash h)])
-    (values (~> k
-                (symbol->string)
-                (string->bytes/utf-8))
-            v)))
-
-(define (hash-string->symbol h)
-  (for/hash ([(k v) (in-hash h)])
-    (values (~> k
-                (bytes->string/utf-8)
-                (string->symbol))
-            v)))
-
 ;; Serializes a resource into a JSON bytestring for storage in Redis.
 (define (serialize-resource res)
   (jsexpr->bytes (hash 'name (resource-name res)
@@ -351,9 +333,5 @@
         'dataset-probeset dataset-probeset-actions
         'dataset-probe dataset-probe-actions))
     ;; future resource types, for reference (c.f. genenetwork datasets etc.)
-    ;; dataset-publish
-    ;; dataset-probeset
-    ;; dataset-probe
-    ;; dataset-geno
     ;; dataset-temp
     ;; collection
