@@ -35,17 +35,6 @@
       (for/hash ([x (in-list binds)])
         (values (car x) (cdr x)))))
 
-(define (testing-endpoint req)
-  (define binds (request-bindings req))
-  (define expected
-    (list 'resource 'user 'branch 'action))
-  (define message
-    (let ((binds* (extract-expected binds expected)))
-      (jsexpr->bytes binds*)))
-  (response/output
-   (lambda (out)
-     (displayln message out))))
-
 
 ;;;; Endpoints
 
@@ -64,7 +53,8 @@
                       (string->symbol res-type))))))
   (response/output
    (lambda (out)
-     (displayln message out))))
+     (displayln message out))
+   #:mime-type #"application/json; charset=utf-8"))
 
 
 ;; Query available actions for a resource, for a given user
@@ -83,7 +73,8 @@
           (jsexpr->bytes))))
   (response/output
    (lambda (out)
-     (displayln message out))))
+     (displayln message out))
+   #:mime-type #"application/json; charset=utf-8"))
 
 
 (define (action-params action binds)
@@ -110,15 +101,15 @@
             "no access"))))
   (response/output
    (lambda (out)
-     (displayln message out))))
+     (displayln message out))
+   #:mime-type #"application/json; charset=utf-8"))
 
 
 (define-values (app reverse-uri)
   (dispatch-rules
    [("available") query-available-endpoint]
    [("run-action") run-action-endpoint]
-   [("get-action-set") get-action-set-endpoint]
-   [("testing") testing-endpoint]))
+   [("get-action-set") get-action-set-endpoint]))
 
 ;; Servlet responder for error handling
 (define (internal-server-error url ex)
