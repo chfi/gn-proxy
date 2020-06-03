@@ -22,7 +22,6 @@
 
 ;; The general "no access" action -- may change in the future
 (define no-access-action
-  (action "no-access"
-          (lambda (data params)
+  (action (lambda (data params)
             'no-access)
           '()))

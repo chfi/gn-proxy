@@ -19,8 +19,7 @@
 ;; See resource.rkt for examples
 (struct
   action
-  (id
-   fun
+  (fun
    req-params)
   #:transparent)
 

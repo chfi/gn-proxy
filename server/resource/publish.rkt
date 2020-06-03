@@ -36,8 +36,7 @@
              dataset-id)))
 
 (define view-publish
-  (action "view"
-          (lambda (data
+  (action (lambda (data
                    params)
             (select-publish (hash-ref data 'dataset)
                             (hash-ref data 'trait)))

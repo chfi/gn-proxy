@@ -24,8 +24,7 @@
                 trait-name)))
 
 (define view-geno
-  (action "view"
-          (lambda (data
+  (action (lambda (data
                    params)
             (select-geno (hash-ref data 'dataset)
                          (dict-ref params 'trait)))

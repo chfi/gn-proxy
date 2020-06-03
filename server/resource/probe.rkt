@@ -25,8 +25,7 @@
                 trait-name)))
 
 (define view-probe
-  (action "view"
-          (lambda (data
+  (action (lambda (data
                    params)
             (select-probe (hash-ref data 'dataset)
                           (hash-ref data 'trait)))

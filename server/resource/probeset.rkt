@@ -31,8 +31,7 @@
                 trait-name)))
 
 (define view-probeset
-  (action "view"
-          (lambda (data
+  (action (lambda (data
                    params)
             (select-probeset (hash-ref data 'dataset)
                           (dict-ref params 'trait)))

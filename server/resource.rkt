@@ -134,7 +134,7 @@
 
 ;; Return the action, as defined by a pair of a branch name and action
 ;; name, for a given resource, as accessible by the given user.
-;; Returns #f if the user does not have access.
+;; Returns the no-access-action if the user does not have access.
 (define (access-action res
                        action-pair
                        #:user [user-id 'anonymous])
@@ -154,14 +154,12 @@
 
 ;; Actions for file-based resources
 (define view-file
-  (action "view"
-          (lambda (data params)
+  (action (lambda (data params)
             (file->string (hash-ref data 'path) #:mode 'text))
           '()))
 
 (define edit-file
-  (action "edit"
-          (lambda (data
+  (action (lambda (data
                    params)
             (write-to-file (dict-ref params 'contents)
                            (hash-ref data 'path)
@@ -175,16 +173,14 @@
 ;; TODO the dbc should be passed as a Racket parameter rather than an
 ;; action param params should be provided as keyword arguments
 (define view-metadata
-  (action "view"
-          (lambda (data
+  (action (lambda (data
                    params)
             (redis-bytes-get (redis-conn)
                              (hash-ref data 'key)))
           '()))
 
 (define edit-metadata
-  (action "edit"
-          (lambda (data
+  (action (lambda (data
                    params)
             (redis-bytes-set! (redis-conn)
                               (hash-ref data 'key)
