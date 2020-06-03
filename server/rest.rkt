@@ -3,6 +3,7 @@
 (require db
          redis
          json
+         net/url
          threading
          racket/match
          web-server/http
@@ -10,6 +11,8 @@
          web-server/http/bindings
          web-server/servlet-dispatch
          web-server/web-server
+         web-server/dispatch
+         web-server/http/response-structs
          (prefix-in filter: web-server/dispatchers/dispatch-filter)
          (prefix-in sequencer: web-server/dispatchers/dispatch-sequencer)
          "db.rkt"
@@ -18,103 +21,113 @@
          "resource.rkt")
 
 
+;;;; Endpoint exceptions
+
+(define (response-param-error params)
+  (error
+   (string-join (map symbol->string params)
+                ", "
+                #:before-first "Expected parameters: ")))
+
+(define (extract-expected binds expected)
+  (if (not (andmap (curryr exists-binding? binds) expected))
+      (response-param-error expected)
+      (for/hash ([x (in-list binds)])
+        (values (car x) (cdr x)))))
+
+
 ;;;; Endpoints
+
+;; Get a JSON representation of the action set for a resource type,
+;; can be useful when resource types start changing so we know what
+;; the proxy expects the masks in a redis resource to look like
+(define (get-action-set-endpoint req)
+  (define binds (request-bindings req))
+  (define expected (list 'resource-type))
+  (define message
+    (let* ((binds* (extract-expected binds expected))
+           (res-type (hash-ref binds* 'resource-type)))
+      (jsexpr->bytes
+           (action-set->hash
+            (dict-ref resource-types
+                      (string->symbol res-type))))))
+  (response/output
+   (lambda (out)
+     (displayln message out))
+   #:mime-type #"application/json; charset=utf-8"))
+
 
 ;; Query available actions for a resource, for a given user
 (define (query-available-endpoint req)
-  (define binds (request-bindings/raw req))
-  (define (masked-actions actions)
-    (for/hash ([(k v) (in-hash actions)])
-      (values k (map car v))))
+  (define binds (request-bindings req))
+  (define expected (list 'resource 'user))
   (define message
-    (match (list (bindings-assq #"resource" binds)
-                 (bindings-assq #"user" binds))
-      [(list #f #f)
-       "provide resource and user id"]
-      [(list (binding:form _ res-id)
-             (binding:form _ user-id))
-       (let* ((res (get-resource res-id))
-              (mask (get-mask-for-user
-                     res
-                     (bytes->string/utf-8 user-id))))
-         (~> (apply-mask (dict-ref resource-types
-                                   (resource-type res))
-                         mask)
-             (masked-actions)
-             (jsexpr->bytes)))]))
+    (let* ((binds* (extract-expected binds expected))
+           (res (get-resource (hash-ref binds* 'resource)))
+           (mask (get-mask-for-user res
+                                    (hash-ref binds* 'user))))
+      (~> (apply-mask (dict-ref resource-types
+                                (resource-type res))
+                      mask)
+          (action-set->hash)
+          (jsexpr->bytes))))
   (response/output
    (lambda (out)
-     (displayln message out))))
+     (displayln message out))
+   #:mime-type #"application/json; charset=utf-8"))
 
-(define (query-available-dispatcher conn req)
-  (output-response conn (query-available-endpoint req)))
 
 (define (action-params action binds)
   (for/hash ([k (action-req-params action)])
-    (values k
-            (~> k
-                (symbol->string)
-                (string->bytes/utf-8)
-                (bindings-assq _ binds)
-                (binding:form-value)))))
+    (values k (dict-ref binds k))))
 
 (define (run-action-endpoint req)
-  (define binds (request-bindings/raw req))
+  (define binds (request-bindings req))
+  (define expected
+    (list 'resource 'branch 'action))
   (define message
-    (match (list (bindings-assq #"resource" binds)
-                 (bindings-assq #"user" binds)
-                 (bindings-assq #"branch" binds)
-                 (bindings-assq #"action" binds))
-      [(list #f #f #f #f)
-       "provide resource id, user id, and action to perform"]
-      [(list (binding:form _ res-id)
-             #f
-             (binding:form _ branch)
-             (binding:form _ action))
-             (let* ((res (get-resource res-id))
-              (branch (~> branch
-                          (bytes->string/utf-8)
-                          (string->symbol)))
-              (action (bytes->string/utf-8 action)))
-         (let ((action (access-action res
-                                      (cons branch action))))
-           (if action
-               (run-action action
-                           (resource-data res)
-                           (action-params action binds))
-               "no access")))]
-      [(list (binding:form _ res-id)
-             (binding:form _ user-id)
-             (binding:form _ branch)
-             (binding:form _ action))
-       (let* ((res (get-resource res-id))
-              (branch (~> branch
-                          (bytes->string/utf-8)
-                          (string->symbol)))
-              (action (bytes->string/utf-8 action)))
-         (let ((action (access-action res
-                                      (cons branch action)
-                                      #:user (bytes->string/utf-8 user-id))))
-           (if action
-               (run-action action
-                           (resource-data res)
-                           (action-params action binds))
-               "no access")))]))
+    (let* ((binds* (extract-expected binds expected))
+           (res (get-resource (hash-ref binds* 'resource)))
+           (branch (string->symbol (hash-ref binds* 'branch)))
+           (action (hash-ref binds* 'action))
+           (user (hash-ref binds* 'user #f)))
+      (let ((action (access-action res
+                     (cons branch action)
+                     #:user user)))
+        (if action
+            (run-action action
+                        (resource-data res)
+                        (action-params action binds))
+            "no access"))))
   (response/output
    (lambda (out)
-     (displayln message out))))
+     (displayln message out))
+   #:mime-type #"application/json; charset=utf-8"))
 
-(define (run-action-dispatcher conn req)
-  (output-response conn (run-action-endpoint req)))
+
+(define-values (app reverse-uri)
+  (dispatch-rules
+   [("available") query-available-endpoint]
+   [("run-action") run-action-endpoint]
+   [("get-action-set") get-action-set-endpoint]))
+
+;; Servlet responder for error handling
+(define (internal-server-error url ex)
+  (log-error "~a ~~~~> ~a"
+             (url->string url)
+             (exn-message ex))
+  (response/output
+   (lambda (out)
+     (displayln (exn-message ex) out))
+   #:code 500
+   #:mime-type #"application/json; charset=utf-8"))
 
 ;; Run the server
 (define stop
   (serve
    #:dispatch (sequencer:make
-               (filter:make #rx"^/available/"
-                            query-available-dispatcher)
-               (filter:make #rx"^/run-action/"
-                            run-action-dispatcher))
+               (dispatch/servlet app
+                                 #:responders-servlet internal-server-error))
    #:listen-ip "127.0.0.1"
    #:port (string->number
            (or (getenv "PORT")

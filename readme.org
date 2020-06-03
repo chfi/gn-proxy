@@ -43,7 +43,7 @@ on the resource type.
 
 #+begin_src js
 { "name": "r1",
-  "owner_id": 0,
+  "owner_id": "7733c380-b83f-45de-a8b5-17e1bc3738a9",
   "data": { "path": "test1.txt",
             "metadata": "test1" },
   "type": "dataset-file",
@@ -77,7 +77,7 @@ action, namely viewing data.
 A JSON example:
 #+begin_src js
 { "name": "some-resource",
-  "owner_id": 0,
+  "owner_id": "7733c380-b83f-45de-a8b5-17e1bc3738a9",
   "data": { "dataset": "BXDGeno",
             "trait": "rs365781" },
   "type": "dataset-geno",
@@ -100,7 +100,7 @@ dataset-geno.
 A JSON example:
 #+begin_src js
 { "name": "some-resource",
-  "owner_id": 0,
+  "owner_id": "7733c380-b83f-45de-a8b5-17e1bc3738a9",
   "data": { "dataset": "1",
             "trait": "17465" },
   "type": "dataset-publish",
