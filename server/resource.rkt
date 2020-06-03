@@ -144,10 +144,23 @@
                    (resource-default-mask res)
                    (get-mask-for-user res
                                       user-id)))
-         (action-set (apply-mask (dict-ref resource-types
-                                           (resource-type res))
-                                 mask)))
-    (let ((action (assoc action-id (hash-ref action-set branch-id))))
+         (type (resource-type res))
+         (unmasked (dict-ref resource-types type))
+         (masked (apply-mask unmasked mask)))
+    (let ((action (assoc action-id
+                         (hash-ref masked
+                                   branch-id
+                                   (lambda ()
+                                     (error (format "Action branch '~a' does not exist in resource type '~a'"
+                                                    branch-id
+                                                    type)))))))
+      (when (false? (assoc action-id
+                           (hash-ref unmasked
+                                     branch-id)))
+        (error (format "Action '~a' does not exist in branch '~a' of resource type '~a'"
+                       action-id
+                       branch-id
+                       type)))
       (if action
           (cdr action)
           no-access-action))))
