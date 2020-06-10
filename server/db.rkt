@@ -8,8 +8,6 @@
          redis-conn
          mysql-conn)
 
-
-;; This should be a racket parameter
 (define (connect-redis)
   (make-redis))
 
@@ -26,4 +24,6 @@
                  #:password sql-pass
                  #:database "db_webqtl_s"))
 
-(define mysql-conn (make-parameter (connect-sql)))
+(define mysql-conn
+  (make-parameter
+   (virtual-connection connect-sql)))
