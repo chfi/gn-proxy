@@ -55,13 +55,11 @@
 
 
 ;; True if a given mask is a mask for the given action set; this is
-;; the case if both have the same keys, and each value in the mask
-;; exists in the list at the corresponding key in the action set hash.
+;; the case if all the keys in the action set also occur in the mask,
+;; however the converse does not have to be the case.
 (define (is-mask-for? actions mask)
-  (and (for/and ([(k v) (in-hash actions)])
-         (not (false? (assoc (dict-ref mask k #f) v))))
-       (for/and ([(k v) (in-hash mask)])
-         (not (false? (dict-ref actions k #f))))))
+  (for/and ([(k v) (in-hash actions)])
+    (not (false? (assoc (dict-ref mask k #f) v)))))
 
 ;; Return the mask for an action set that provides the least possible
 ;; level of access, i.e. only the first action in each branch.
