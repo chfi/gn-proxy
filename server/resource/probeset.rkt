@@ -30,7 +30,7 @@
                 dataset-name
                 trait-name)))
 
-(define view-probeset
+(define view-probeset-data
   (action (lambda (data
                    params)
             (select-probeset (hash-ref data 'dataset)
@@ -39,7 +39,20 @@
 
 (define dataset-probeset-data
   (list (cons "no-access" no-access-action)
-        (cons "view" view-probeset)))
+        (cons "view" view-probeset-data)
+        (cons "edit" #f)))
+
+(define dataset-probeset-metadata
+  (list (cons "no-access" #f)
+        (cons "view" #f)
+        (cons "edit" #f)))
+
+(define dataset-probeset-admin
+  (list (cons "not-admin" #f)
+        (cons "edit-access" #f)
+        (cons "edit-admins" #f)))
 
 (define dataset-probeset-actions
-  (hasheq 'data dataset-probeset-data))
+  (hasheq 'data dataset-probeset-data
+          'metadata dataset-probeset-metadata
+          'admin dataset-probeset-admin))
