@@ -35,16 +35,44 @@
              trait-name
              dataset-id)))
 
-(define view-publish
+(define view-publish-data
   (action (lambda (data
                    params)
             (select-publish (hash-ref data 'dataset)
                             (hash-ref data 'trait)))
           '()))
 
+(define edit-publish-data
+  (lambda (data
+           params)
+    #f))
+
+(define view-publish-metadata
+  (lambda (data
+           params)
+    #f))
+
+(define edit-publish-metadata
+  (lambda (data
+           params)
+    #f))
+
 (define dataset-publish-data
   (list (cons "no-access" no-access-action)
-        (cons "view" view-publish)))
+        (cons "view" view-publish-data)
+        (cons "edit" edit-publish-data)))
+
+(define dataset-publish-metadata
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-publish-metadata)
+        (cons "edit" edit-publish-metadata)))
+
+(define dataset-publish-admin
+  (list (cons "not-admin" (lambda (data params) #f))
+        (cons "edit-access" (lambda (data params) #f))
+        (cons "edit-admins" (lambda (data params) #f))))
 
 (define dataset-publish-actions
-  (hasheq 'data dataset-publish-data))
+  (hasheq 'data dataset-publish-data
+          'metadata dataset-publish-metadata
+          'admin dataset-publish-admin))
