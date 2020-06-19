@@ -30,20 +30,35 @@
                          (dict-ref params 'trait)))
           '(trait)))
 
+(define edit-geno-data
+  (lambda (data
+           params)
+    #f))
+
+(define view-geno-metadata
+  (lambda (data
+           params)
+    #f))
+
+(define edit-geno-metadata
+  (lambda (data
+           params)
+    #f))
+
 (define dataset-geno-data
   (list (cons "no-access" no-access-action)
         (cons "view" view-geno-data)
-        (cons "edit" #f)))
+        (cons "edit" edit-geno-data)))
 
 (define dataset-geno-metadata
-  (list (cons "no-access" #f)
-        (cons "view" #f)
-        (cons "edit" #f)))
+  (list (cons "no-access" no-access-action)
+        (cons "view" view-geno-metadata)
+        (cons "edit" edit-geno-metadata)))
 
 (define dataset-geno-admin
-  (list (cons "not-admin" #f)
-        (cons "edit-access" #f)
-        (cons "edit-admins" #f)))
+  (list (cons "not-admin" (lambda (data params) #f))
+        (cons "edit-access" (lambda (data params) #f))
+        (cons "edit-admins" (lambda (data params) #f))))
 
 (define dataset-geno-actions
   (hasheq 'data dataset-geno-data
