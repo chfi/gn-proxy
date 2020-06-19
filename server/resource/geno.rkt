@@ -38,7 +38,7 @@
 (define dataset-geno-metadata
   (list (cons "no-access" #f)
         (cons "view" #f)
-        (cons "edit" no-access-action)))
+        (cons "edit" #f)))
 
 (define dataset-geno-admin
   (list (cons "not-admin" #f)
