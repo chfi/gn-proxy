@@ -16,11 +16,17 @@
     (query-row (mysql-conn)
                "SELECT
                       PublishXRef.Id, InbredSet.InbredSetCode, Publication.PubMed_ID,
-                      Phenotype.Pre_publication_description, Phenotype.Post_publication_description, Phenotype.Original_description,
-                      Phenotype.Pre_publication_abbreviation, Phenotype.Post_publication_abbreviation, PublishXRef.mean,
+                      CAST(Phenotype.Pre_publication_description AS BINARY),
+                      CAST(Phenotype.Post_publication_description AS BINARY),
+                      CAST(Phenotype.Original_description AS BINARY),
+                      CAST(Phenotype.Pre_publication_abbreviation AS BINARY),
+                      CAST(Phenotype.Post_publication_abbreviation AS BINARY), PublishXRef.mean,
                       Phenotype.Lab_code, Phenotype.Submitter, Phenotype.Owner, Phenotype.Authorized_Users,
-                      Publication.Authors, Publication.Title, Publication.Abstract,
-                      Publication.Journal, Publication.Volume, Publication.Pages,
+                      CAST(Publication.Authors AS BINARY),
+                      CAST(Publication.Title AS BINARY),
+                      CAST(Publication.Abstract AS BINARY),
+                      CAST(Publication.Journal AS BINARY),
+                      Publication.Volume, Publication.Pages,
                       Publication.Month, Publication.Year, PublishXRef.Sequence,
                       Phenotype.Units, PublishXRef.comments
                 FROM

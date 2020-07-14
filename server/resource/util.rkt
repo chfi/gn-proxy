@@ -16,9 +16,11 @@
 (define (sql-result->json query-result)
   (jsexpr->bytes
    (map (lambda (x)
-          (if (sql-null? x) 'null x))
+          (cond
+            [(sql-null? x) 'null]
+            [(bytes? x) (bytes->string/utf-8 x)]
+            [else x]))
         (vector->list query-result))))
-
 
 ;; The general "no access" action -- may change in the future
 (define no-access-action
