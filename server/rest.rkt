@@ -38,6 +38,11 @@
 
 ;;;; Endpoints
 
+
+(define (show-version req)
+  (response/jsexpr
+   #hasheq((version . "0.2.1"))))
+
 ;; Get a JSON representation of the action set for a resource type,
 ;; can be useful when resource types start changing so we know what
 ;; the proxy expects the masks in a redis resource to look like
@@ -107,6 +112,7 @@
 
 (define-values (app reverse-uri)
   (dispatch-rules
+   [("version") show-version]
    [("available") query-available-endpoint]
    [("run-action") run-action-endpoint]
    [("get-action-set") get-action-set-endpoint]))
