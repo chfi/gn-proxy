@@ -129,3 +129,8 @@ user (e.g. in the request to the REST endpoint).
 It's probably best to just look at how one of the existing resource
 types are defined, and ~dataset-geno~ is one of the simplest, while
 still querying the SQL database.
+
+** License
+
+The GeneNetwork source code is released under the Affero General
+Public License 3 (AGPLv3). See [[./LICENSE.txt]].
