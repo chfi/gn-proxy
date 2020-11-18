@@ -26,4 +26,8 @@
 
 (define mysql-conn
   (make-parameter
-   (virtual-connection connect-sql)))
+   (virtual-connection
+    (connection-pool connect-sql
+                     ; these are the default arguments, for clarity's sake
+                     #:max-connections +inf.0
+                     #:max-idle-connections 10))))
